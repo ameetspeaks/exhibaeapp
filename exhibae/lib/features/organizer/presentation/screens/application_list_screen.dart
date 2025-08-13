@@ -181,6 +181,7 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                           ),
+                          isExpanded: true,
                         ),
                       ),
                     ),
@@ -203,7 +204,11 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                             DropdownMenuItem(value: 'all', child: Text('All Exhibitions')),
                             ..._exhibitions.map((exhibition) => DropdownMenuItem(
                               value: exhibition['id'],
-                              child: Text(exhibition['title'] ?? 'Untitled'),
+                              child: Text(
+                                exhibition['title'] ?? 'Untitled',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             )),
                           ],
                           onChanged: (value) {
@@ -217,6 +222,7 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                           ),
+                          isExpanded: true,
                         ),
                       ),
                     ),

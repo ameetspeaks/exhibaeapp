@@ -152,18 +152,21 @@ class _OrganizerExhibitionsScreenState extends State<OrganizerExhibitionsScreen>
                 const SizedBox(height: 16),
                 
                 // Filter Chips
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildFilterChip('All', 'all'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Active', 'active'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Upcoming', 'upcoming'),
-                      const SizedBox(width: 8),
-                      _buildFilterChip('Past', 'past'),
-                    ],
+                SizedBox(
+                  height: 40,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildFilterChip('All', 'all'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Active', 'active'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Upcoming', 'upcoming'),
+                        const SizedBox(width: 8),
+                        _buildFilterChip('Past', 'past'),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -307,7 +310,7 @@ class _OrganizerExhibitionsScreenState extends State<OrganizerExhibitionsScreen>
       backgroundColor: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.1),
       selectedColor: AppTheme.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.2),
           width: 1,
@@ -318,9 +321,11 @@ class _OrganizerExhibitionsScreenState extends State<OrganizerExhibitionsScreen>
         style: TextStyle(
           color: isSelected ? AppTheme.gradientBlack : AppTheme.white,
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          fontSize: 13,
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 
@@ -424,36 +429,46 @@ class _OrganizerExhibitionsScreenState extends State<OrganizerExhibitionsScreen>
                     color: AppTheme.white.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
+                  child: Column(
                     children: [
-                      _buildStatItem(
-                        Icons.calendar_today,
-                        'Date',
-                        startDate != null && endDate != null
-                            ? '${startDate.day}/${startDate.month} - ${endDate.day}/${endDate.month}'
-                            : 'Not set',
-                      ),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        margin: const EdgeInsets.symmetric(horizontal: 12),
-                        color: AppTheme.white.withOpacity(0.1),
-                      ),
-                      _buildStatItem(
-                        Icons.people,
-                        'Applications',
-                        '${exhibition['application_count'] ?? 0}',
-                      ),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        margin: const EdgeInsets.symmetric(horizontal: 12),
-                        color: AppTheme.white.withOpacity(0.1),
-                      ),
-                      _buildStatItem(
-                        Icons.grid_on,
-                        'Stalls',
-                        '${exhibition['stall_count'] ?? 0}',
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatItem(
+                              Icons.calendar_today,
+                              'Date',
+                              startDate != null && endDate != null
+                                  ? '${startDate.day}/${startDate.month} - ${endDate.day}/${endDate.month}'
+                                  : 'Not set',
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+                            color: AppTheme.white.withOpacity(0.1),
+                          ),
+                          Expanded(
+                            child: _buildStatItem(
+                              Icons.people,
+                              'Applications',
+                              '${exhibition['application_count'] ?? 0}',
+                            ),
+                          ),
+                          Container(
+                            width: 1,
+                            height: 40,
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+                            color: AppTheme.white.withOpacity(0.1),
+                          ),
+                          Expanded(
+                            child: _buildStatItem(
+                              Icons.grid_on,
+                              'Stalls',
+                              '${exhibition['stall_count'] ?? 0}',
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
