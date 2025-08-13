@@ -24,7 +24,7 @@ class SupabaseConfig {
   static const String anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVscWxoamx1eXRvYnFhdml1c3drIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzA0NDQwNywiZXhwIjoyMDYyNjIwNDA3fQ.X7kChYi2U-xVAKOBaLY16Vyx1IY5DTG_SwYKan_093U';
   
   // Example of what your anon key JWT should look like:
-  // eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVscWxoamx1eXRvYnFhdml1c3drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcwNDQ0MDcsImV4cCI6MjA2MjYyMDQwN30.XXXXX
+  // eyJhbGciOiJIUzI1NiIsInR5cCI6IkpRXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVscWxoamx1eXRvYnFhdml1c3drIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcwNDQ0MDcsImV4cCI6MjA2MjYyMDQwN30.XXXXX
   //                                                                                                                   ^^^^^^^^
   //                                                                                                                   Notice "role":"anon" here
 }

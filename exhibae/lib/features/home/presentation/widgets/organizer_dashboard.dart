@@ -252,7 +252,7 @@ class _OrganizerDashboardState extends State<OrganizerDashboard> {
             Icons.event,
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
             'Total Applications',
@@ -266,7 +266,7 @@ class _OrganizerDashboardState extends State<OrganizerDashboard> {
 
   Widget _buildStatCard(String title, String value, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
@@ -287,25 +287,29 @@ class _OrganizerDashboardState extends State<OrganizerDashboard> {
             child: Icon(
               icon,
               color: AppTheme.white,
-              size: 24,
+              size: 20,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 32,
+              fontSize: 28,
               fontWeight: FontWeight.bold,
               color: AppTheme.white,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 8),
           Text(
             title,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               color: AppTheme.white.withOpacity(0.8),
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -626,30 +630,52 @@ class _OrganizerDashboardState extends State<OrganizerDashboard> {
                     color: AppTheme.white.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(
-                        Icons.grid_on,
-                        size: 16,
-                        color: AppTheme.white.withOpacity(0.8),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Stall ${stall['name'] ?? 'Unknown'} - ${stall['length']}x${stall['width']}${stall['unit']?['symbol'] ?? 'm'}',
-                          style: TextStyle(
-                            fontSize: 14,
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.grid_on,
+                            size: 16,
                             color: AppTheme.white.withOpacity(0.8),
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Stall ${stall['name'] ?? 'Unknown'}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppTheme.white.withOpacity(0.9),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        '₹${stall['price'] ?? '0'}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.white,
-                        ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              '${stall['length']} × ${stall['width']} ${stall['unit']?['symbol'] ?? 'm'}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppTheme.white.withOpacity(0.8),
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '₹${stall['price']?.toString() ?? '0'}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.white,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
