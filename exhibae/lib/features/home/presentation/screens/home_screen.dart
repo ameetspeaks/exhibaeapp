@@ -8,6 +8,7 @@ import '../../../brand/presentation/screens/brand_stalls_screen.dart';
 import '../../../brand/presentation/screens/brand_profile_screen.dart';
 import '../../../organizer/presentation/screens/organizer_exhibitions_screen.dart';
 import '../../../organizer/presentation/screens/organizer_profile_screen.dart';
+import '../../../organizer/presentation/screens/application_list_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -67,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
           case 1:
             return _buildExploreScreen();
           case 2:
-            return _buildStallsScreen();
+            return _buildThirdTab(userRole);
           case 3:
             return _buildProfileScreen();
           default:
@@ -95,8 +96,12 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildStallsScreen() {
-    return const BrandStallsScreen();
+  Widget _buildThirdTab(String userRole) {
+    if (userRole == 'organizer') {
+      return const ApplicationListScreen();
+    } else {
+      return const BrandStallsScreen();
+    }
   }
 
   Widget _buildProfileScreen() {
@@ -117,6 +122,48 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  List<BottomNavigationBarItem> _buildBottomNavItems(String userRole) {
+    if (userRole == 'organizer') {
+      return const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard),
+          label: 'Dashboard',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.explore),
+          label: 'My Exhibitions',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.assignment),
+          label: 'Applications',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person),
+          label: 'Profile',
+        ),
+      ];
+    } else {
+      return const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.dashboard),
+          label: 'Dashboard',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.explore),
+          label: 'Explore',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.store),
+          label: 'My Stalls',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person),
+          label: 'Profile',
+        ),
+      ];
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -135,54 +182,44 @@ class _HomeScreenState extends State<HomeScreen> {
           child: _buildCurrentScreen(),
         ),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.white,
-          border: Border(
-            top: BorderSide(
-              color: AppTheme.gradientBlack.withOpacity(0.1),
-              width: 1,
+      bottomNavigationBar: FutureBuilder<String>(
+        future: _getUserRole(),
+        builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
+          final userRole = snapshot.data ?? 'brand';
+          
+          return Container(
+            decoration: BoxDecoration(
+              color: AppTheme.white,
+              border: Border(
+                top: BorderSide(
+                  color: AppTheme.gradientBlack.withOpacity(0.1),
+                  width: 1,
+                ),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
             ),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
+            child: BottomNavigationBar(
+              currentIndex: _currentIndex,
+              onTap: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: AppTheme.white,
+              selectedItemColor: AppTheme.gradientBlack,
+              unselectedItemColor: AppTheme.gradientBlack.withOpacity(0.6),
+              elevation: 0,
+              items: _buildBottomNavItems(userRole),
             ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: AppTheme.white,
-          selectedItemColor: AppTheme.gradientBlack,
-          unselectedItemColor: AppTheme.gradientBlack.withOpacity(0.6),
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard),
-              label: 'Dashboard',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.explore),
-              label: 'Explore',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.store),
-              label: 'My Stalls',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person),
-              label: 'Profile',
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
