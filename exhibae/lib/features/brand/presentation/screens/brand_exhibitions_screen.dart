@@ -421,35 +421,35 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppTheme.backgroundPeach,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.backgroundPeach,
         elevation: 0,
         title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.white.withOpacity(0.1),
+                color: AppTheme.secondaryWarm.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: AppTheme.white.withOpacity(0.2),
+                  color: AppTheme.borderLightGray,
                   width: 1,
                 ),
               ),
               child: const Icon(
                 Icons.explore,
-                color: AppTheme.white,
+                color: Colors.black,
                 size: 24,
               ),
             ),
             const SizedBox(width: 16),
-            const Text(
+            Text(
               'Exhibitions',
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.white,
+                color: Colors.black,
               ),
             ),
           ],
@@ -458,7 +458,7 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
           IconButton(
             icon: Icon(
               _isGridView ? Icons.view_list : Icons.grid_view,
-              color: AppTheme.white,
+              color: Colors.black,
               size: 24,
             ),
             onPressed: _toggleView,
@@ -473,11 +473,10 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
             margin: const EdgeInsets.all(16),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.white.withOpacity(0.1),
+              color: AppTheme.secondaryWarm.withOpacity(0.1),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: AppTheme.white.withOpacity(0.2),
-                width: 1,
+                color: AppTheme.borderLightGray,
               ),
             ),
             child: Column(
@@ -488,18 +487,18 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
                   decoration: InputDecoration(
                     hintText: 'Search exhibitions...',
                     hintStyle: TextStyle(
-                      color: AppTheme.white.withOpacity(0.7),
+                      color: Colors.black.withOpacity(0.7),
                       fontSize: 16,
                     ),
                     prefixIcon: Icon(
                       Icons.search,
-                      color: AppTheme.white,
+                      color: Colors.black,
                       size: 24,
                     ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         Icons.clear,
-                        color: AppTheme.white.withOpacity(0.7),
+                        color: Colors.black.withOpacity(0.7),
                       ),
                       onPressed: () {
                         _searchController.clear();
@@ -510,13 +509,13 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(
-                        color: AppTheme.white.withOpacity(0.2),
+                        color: AppTheme.borderLightGray,
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(
-                        color: AppTheme.white.withOpacity(0.2),
+                        color: AppTheme.borderLightGray,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
@@ -552,7 +551,7 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
                         decoration: InputDecoration(
                           labelText: 'Category',
                           labelStyle: TextStyle(
-                            color: AppTheme.white.withOpacity(0.8),
+                            color: Colors.black.withOpacity(0.8),
                             fontSize: 14,
                           ),
                           border: OutlineInputBorder(
@@ -561,7 +560,7 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                              borderSide: BorderSide(
-                               color: AppTheme.white.withOpacity(0.2),
+                               color: AppTheme.borderLightGray,
                              ),
                           ),
                           focusedBorder: OutlineInputBorder(
@@ -612,7 +611,7 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
                         decoration: InputDecoration(
                           labelText: 'Event Type',
                           labelStyle: TextStyle(
-                            color: AppTheme.white.withOpacity(0.8),
+                            color: Colors.black.withOpacity(0.8),
                             fontSize: 14,
                           ),
                           border: OutlineInputBorder(
@@ -621,7 +620,7 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                              borderSide: BorderSide(
-                               color: AppTheme.white.withOpacity(0.2),
+                               color: AppTheme.borderLightGray,
                              ),
                           ),
                           focusedBorder: OutlineInputBorder(
@@ -672,7 +671,7 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
                         decoration: InputDecoration(
                           labelText: 'Location',
                           labelStyle: TextStyle(
-                            color: AppTheme.white.withOpacity(0.8),
+                            color: Colors.black.withOpacity(0.8),
                             fontSize: 14,
                           ),
                           border: OutlineInputBorder(
@@ -681,7 +680,7 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                              borderSide: BorderSide(
-                               color: AppTheme.white.withOpacity(0.2),
+                               color: AppTheme.borderLightGray,
                              ),
                           ),
                           focusedBorder: OutlineInputBorder(
@@ -813,23 +812,21 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'No exhibitions found',
               style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textDarkCharcoal,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
-              'Try adjusting your search or filters to find more exhibitions',
+              'Check back later for new exhibitions',
               style: TextStyle(
-                fontSize: 16,
-                color: AppTheme.textMediumGray,
-                height: 1.5,
+                fontSize: 14,
+                color: Colors.black.withOpacity(0.8),
               ),
-              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(

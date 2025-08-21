@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/supabase_service.dart';
-import '../../services/report_export_service.dart';
+import '../../../../core/widgets/responsive_card.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -12,12 +12,11 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen> {
   final SupabaseService _supabaseService = SupabaseService.instance;
+  
+  List<Map<String, dynamic>> _reports = [];
   bool _isLoading = true;
-  Map<String, dynamic>? _reportsData;
   String? _error;
-  String _selectedReport = 'exhibitions';
-  String _selectedTimeRange = 'month';
-  String _selectedStatus = 'all';
+  String _selectedFilter = 'all';
 
   @override
   void initState() {
@@ -26,63 +25,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Future<void> _loadReports() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
+    if (!mounted) return;
 
-      final userId = _supabaseService.currentUser?.id;
-      if (userId == null) {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final currentUser = _supabaseService.client.auth.currentUser;
+      if (currentUser == null) {
         throw Exception('User not authenticated');
       }
 
-      // Get exhibitions data
-      final exhibitions = await _supabaseService.getExhibitions();
-      final organizerExhibitions = exhibitions.where((exhibition) => 
-        exhibition['organiser']?['id'] == userId
-      ).toList();
-
-      // Get applications data
-      final applications = await _supabaseService.getStallApplications();
-      final exhibitionIds = organizerExhibitions.map((e) => e['id']).toList();
-      final exhibitionApplications = applications.where((app) => 
-        exhibitionIds.contains(app['exhibition_id'])
-      ).toList();
-
-      // Filter by time range
-      final now = DateTime.now();
-      final startDate = _selectedTimeRange == 'month'
-          ? DateTime(now.year, now.month - 1, now.day)
-          : _selectedTimeRange == 'quarter'
-              ? DateTime(now.year, now.month - 3, now.day)
-              : DateTime(now.year - 1, now.month, now.day);
-
-      final filteredExhibitions = organizerExhibitions.where((exhibition) {
-        final createdAt = DateTime.parse(exhibition['created_at']);
-        return createdAt.isAfter(startDate);
-      }).toList();
-
-      final filteredApplications = exhibitionApplications.where((app) {
-        final createdAt = DateTime.parse(app['created_at']);
-        return createdAt.isAfter(startDate);
-      }).toList();
-
-      // Filter by status
-      final statusFilteredExhibitions = _selectedStatus == 'all'
-          ? filteredExhibitions
-          : filteredExhibitions.where((e) => e['status'] == _selectedStatus).toList();
-
-      final statusFilteredApplications = _selectedStatus == 'all'
-          ? filteredApplications
-          : filteredApplications.where((a) => a['status'] == _selectedStatus).toList();
+      final reports = await _supabaseService.getReports(organizerId: currentUser.id);
 
       if (mounted) {
         setState(() {
-          _reportsData = {
-            'exhibitions': statusFilteredExhibitions,
-            'applications': statusFilteredApplications,
-          };
+          _reports = reports;
           _isLoading = false;
         });
       }
@@ -96,822 +56,424 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  Future<void> _exportReport() async {
-    try {
-      setState(() {
-        _isLoading = true;
-      });
+  List<Map<String, dynamic>> get _filteredReports {
+    if (_selectedFilter == 'all') return _reports;
+    return _reports.where((report) => report['status'] == _selectedFilter).toList();
+  }
 
-      if (_selectedReport == 'exhibitions') {
-        await ReportExportService.exportExhibitionsReport(_reportsData?['exhibitions'] ?? []);
-      } else {
-        await ReportExportService.exportApplicationsReport(_reportsData?['applications'] ?? []);
-      }
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'completed':
+        return Colors.green;
+      case 'processing':
+        return Colors.orange;
+      case 'failed':
+        return AppTheme.errorRed;
+      default:
+        return Colors.grey;
+    }
+  }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Report exported successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error exporting report: $e'),
-            backgroundColor: AppTheme.errorRed,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+  IconData _getReportTypeIcon(String type) {
+    switch (type) {
+      case 'revenue':
+        return Icons.attach_money;
+      case 'analytics':
+        return Icons.analytics;
+      case 'performance':
+        return Icons.trending_up;
+      case 'success':
+        return Icons.check_circle;
+      default:
+        return Icons.description;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppTheme.backgroundPeach,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
+        title: Text(
           'Reports',
           style: TextStyle(
-            color: AppTheme.white,
-            fontSize: 24,
+            color: AppTheme.primaryMaroon,
             fontWeight: FontWeight.bold,
           ),
         ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: AppTheme.primaryMaroon),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
           IconButton(
-            onPressed: _exportReport,
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppTheme.white.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              child: const Icon(
-                Icons.download,
-                color: AppTheme.white,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                // Report Type Selector
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppTheme.white.withOpacity(0.2),
-                      width: 1,
-                    ),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedReport,
-                      items: [
-                        DropdownMenuItem(
-                          value: 'exhibitions',
-                          child: Text(
-                            'Exhibitions Report',
-                            style: TextStyle(
-                              color: AppTheme.white,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'applications',
-                          child: Text(
-                            'Applications Report',
-                            style: TextStyle(
-                              color: AppTheme.white,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() {
-                            _selectedReport = value;
-                          });
-                          _loadReports();
-                        }
-                      },
-                      dropdownColor: AppTheme.gradientBlack,
-                      icon: Icon(
-                        Icons.arrow_drop_down,
-                        color: AppTheme.white,
-                      ),
-                      isExpanded: true,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Filters Row
-                Row(
-                  children: [
-                    // Time Range Filter
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppTheme.white.withOpacity(0.2),
-                            width: 1,
-                          ),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedTimeRange,
-                            items: [
-                              DropdownMenuItem(
-                                value: 'month',
-                                child: Text(
-                                  'Last Month',
-                                  style: TextStyle(
-                                    color: AppTheme.white,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                              DropdownMenuItem(
-                                value: 'quarter',
-                                child: Text(
-                                  'Last Quarter',
-                                  style: TextStyle(
-                                    color: AppTheme.white,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                              DropdownMenuItem(
-                                value: 'year',
-                                child: Text(
-                                  'Last Year',
-                                  style: TextStyle(
-                                    color: AppTheme.white,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() {
-                                  _selectedTimeRange = value;
-                                });
-                                _loadReports();
-                              }
-                            },
-                            dropdownColor: AppTheme.gradientBlack,
-                            icon: Icon(
-                              Icons.arrow_drop_down,
-                              color: AppTheme.white,
-                            ),
-                            isExpanded: true,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-
-                    // Status Filter
-                    Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: AppTheme.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppTheme.white.withOpacity(0.2),
-                            width: 1,
-                          ),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedStatus,
-                            items: _selectedReport == 'exhibitions'
-                                ? [
-                                    DropdownMenuItem(
-                                      value: 'all',
-                                      child: Text(
-                                        'All Status',
-                                        style: TextStyle(
-                                          color: AppTheme.white,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'published',
-                                      child: Text(
-                                        'Published',
-                                        style: TextStyle(
-                                          color: AppTheme.white,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'live',
-                                      child: Text(
-                                        'Live',
-                                        style: TextStyle(
-                                          color: AppTheme.white,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'completed',
-                                      child: Text(
-                                        'Completed',
-                                        style: TextStyle(
-                                          color: AppTheme.white,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                  ]
-                                : [
-                                    DropdownMenuItem(
-                                      value: 'all',
-                                      child: Text(
-                                        'All Status',
-                                        style: TextStyle(
-                                          color: AppTheme.white,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'pending',
-                                      child: Text(
-                                        'Pending',
-                                        style: TextStyle(
-                                          color: AppTheme.white,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'approved',
-                                      child: Text(
-                                        'Approved',
-                                        style: TextStyle(
-                                          color: AppTheme.white,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'rejected',
-                                      child: Text(
-                                        'Rejected',
-                                        style: TextStyle(
-                                          color: AppTheme.white,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() {
-                                  _selectedStatus = value;
-                                });
-                                _loadReports();
-                              }
-                            },
-                            dropdownColor: AppTheme.gradientBlack,
-                            icon: Icon(
-                              Icons.arrow_drop_down,
-                              color: AppTheme.white,
-                            ),
-                            isExpanded: true,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          
-          Expanded(
-            child: _isLoading
-                ? Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.white),
-                    ),
-                  )
-                : _error != null
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Error loading reports',
-                              style: TextStyle(
-                                color: AppTheme.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _error!,
-                              style: TextStyle(
-                                color: AppTheme.white.withOpacity(0.7),
-                                fontSize: 14,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: _loadReports,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.white.withOpacity(0.2),
-                                foregroundColor: AppTheme.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        ),
-                      )
-                    : _selectedReport == 'exhibitions'
-                        ? _buildExhibitionsReport()
-                        : _buildApplicationsReport(),
+            icon: Icon(Icons.add, color: AppTheme.primaryMaroon),
+            onPressed: () {
+              _showGenerateReportDialog();
+            },
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildExhibitionsReport() {
-    final exhibitions = _reportsData?['exhibitions'] ?? [];
-    
-    if (exhibitions.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppTheme.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppTheme.white.withOpacity(0.2),
-                  width: 1,
-                ),
+      body: _isLoading
+          ? Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryMaroon),
               ),
-              child: Icon(
-                Icons.event_busy,
-                size: 64,
-                color: AppTheme.white.withOpacity(0.6),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No exhibitions found',
-              style: TextStyle(
-                color: AppTheme.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Try adjusting your filters',
-              style: TextStyle(
-                color: AppTheme.white.withOpacity(0.8),
-                fontSize: 16,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: exhibitions.length,
-      itemBuilder: (context, index) {
-        final exhibition = exhibitions[index];
-        return _buildExhibitionReportCard(exhibition);
-      },
-    );
-  }
-
-  Widget _buildApplicationsReport() {
-    final applications = _reportsData?['applications'] ?? [];
-    
-    if (applications.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppTheme.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: AppTheme.white.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              child: Icon(
-                Icons.assignment_late,
-                size: 64,
-                color: AppTheme.white.withOpacity(0.6),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No applications found',
-              style: TextStyle(
-                color: AppTheme.white,
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Try adjusting your filters',
-              style: TextStyle(
-                color: AppTheme.white.withOpacity(0.8),
-                fontSize: 16,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: applications.length,
-      itemBuilder: (context, index) {
-        final application = applications[index];
-        return _buildApplicationReportCard(application);
-      },
-    );
-  }
-
-  Widget _buildExhibitionReportCard(Map<String, dynamic> exhibition) {
-    final status = exhibition['status'] ?? 'draft';
-    final startDate = exhibition['start_date'] != null
-        ? DateTime.parse(exhibition['start_date'])
-        : null;
-    final endDate = exhibition['end_date'] != null
-        ? DateTime.parse(exhibition['end_date'])
-        : null;
-    
-    Color getStatusColor() {
-      switch (status) {
-        case 'published':
-          return AppTheme.white;
-        case 'live':
-          return Colors.green;
-        case 'completed':
-          return Colors.orange;
-        default:
-          return Colors.grey;
-      }
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            // TODO: Navigate to exhibition details
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            exhibition['title'] ?? 'Untitled Exhibition',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            exhibition['location'] ?? 'Location not specified',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.white.withOpacity(0.8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: getStatusColor().withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: getStatusColor().withOpacity(0.2),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        status.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: getStatusColor(),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
+            )
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildStatItem(
-                        Icons.calendar_today,
-                        'Date',
-                        startDate != null && endDate != null
-                            ? '${startDate.day}/${startDate.month} - ${endDate.day}/${endDate.month}'
-                            : 'Not set',
-                      ),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        margin: const EdgeInsets.symmetric(horizontal: 12),
-                        color: AppTheme.white.withOpacity(0.1),
-                      ),
-                      _buildStatItem(
-                        Icons.people,
-                        'Applications',
-                        '${exhibition['application_count'] ?? 0}',
-                      ),
-                      Container(
-                        width: 1,
-                        height: 40,
-                        margin: const EdgeInsets.symmetric(horizontal: 12),
-                        color: AppTheme.white.withOpacity(0.1),
-                      ),
-                      _buildStatItem(
-                        Icons.grid_on,
-                        'Stalls',
-                        '${exhibition['stall_count'] ?? 0}',
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildApplicationReportCard(Map<String, dynamic> application) {
-    final brand = application['brand'] ?? {};
-    final exhibition = application['exhibition'] ?? {};
-    final stall = application['stall'] ?? {};
-    final status = application['status'] ?? 'pending';
-    
-    Color getStatusColor() {
-      switch (status) {
-        case 'approved':
-          return Colors.green;
-        case 'rejected':
-          return AppTheme.errorRed;
-        default:
-          return AppTheme.white;
-      }
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            // TODO: Navigate to application details
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppTheme.white.withOpacity(0.1),
-                      child: Text(
-                        brand['company_name']?.substring(0, 1).toUpperCase() ?? 'B',
-                        style: TextStyle(
-                          color: AppTheme.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            brand['company_name'] ?? 'Unknown Brand',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.white,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            exhibition['title'] ?? 'Unknown Exhibition',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.white.withOpacity(0.8),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: getStatusColor().withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: getStatusColor().withOpacity(0.2),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        status.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: getStatusColor(),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.grid_on,
-                        size: 16,
-                        color: AppTheme.white.withOpacity(0.8),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Stall ${stall['name'] ?? 'Unknown'} - ${stall['length']}x${stall['width']}${stall['unit']?['symbol'] ?? 'm'}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.white.withOpacity(0.8),
-                          ),
-                        ),
-                      ),
                       Text(
-                        '₹${stall['price'] ?? '0'}',
-                        style: const TextStyle(
-                          fontSize: 14,
+                        'Error loading reports',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 18,
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.white,
                         ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _error!,
+                        style: TextStyle(
+                          color: Colors.black.withOpacity(0.7),
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadReports,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryMaroon,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Retry'),
                       ),
                     ],
                   ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadReports,
+                  color: AppTheme.primaryMaroon,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildFilterSection(),
+                        const SizedBox(height: 20),
+                        _buildReportsList(),
+                      ],
+                    ),
+                  ),
                 ),
-              ],
-            ),
-          ),
+    );
+  }
+
+  void _showGenerateReportDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Generate New Report',
+          style: TextStyle(color: AppTheme.primaryMaroon),
         ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.attach_money, color: AppTheme.primaryMaroon),
+              title: Text('Revenue Report'),
+              subtitle: Text('Monthly revenue analysis'),
+              onTap: () {
+                Navigator.pop(context);
+                _generateReport('revenue');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.analytics, color: AppTheme.primaryMaroon),
+              title: Text('Analytics Report'),
+              subtitle: Text('Application and performance metrics'),
+              onTap: () {
+                Navigator.pop(context);
+                _generateReport('analytics');
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.trending_up, color: AppTheme.primaryMaroon),
+              title: Text('Performance Report'),
+              subtitle: Text('Brand and exhibition performance'),
+              onTap: () {
+                Navigator.pop(context);
+                _generateReport('performance');
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatItem(IconData icon, String label, String value) {
-    return Expanded(
+  void _generateReport(String type) {
+    // TODO: Implement report generation
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Generating $type report...'),
+        backgroundColor: AppTheme.primaryMaroon,
+      ),
+    );
+  }
+
+  Widget _buildFilterSection() {
+    return ResponsiveCard(
+      padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Filter Reports',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryMaroon,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            children: [
+              _buildFilterChip('all', 'All'),
+              _buildFilterChip('completed', 'Completed'),
+              _buildFilterChip('processing', 'Processing'),
+              _buildFilterChip('failed', 'Failed'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(String value, String label) {
+    final isSelected = _selectedFilter == value;
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() {
+          _selectedFilter = value;
+        });
+      },
+      backgroundColor: Colors.white,
+      selectedColor: AppTheme.primaryMaroon.withOpacity(0.2),
+      checkmarkColor: AppTheme.primaryMaroon,
+      labelStyle: TextStyle(
+        color: isSelected ? AppTheme.primaryMaroon : Colors.black,
+        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+      ),
+      side: BorderSide(
+        color: isSelected ? AppTheme.primaryMaroon : AppTheme.borderLightGray,
+      ),
+    );
+  }
+
+  Widget _buildReportsList() {
+    if (_filteredReports.isEmpty) {
+      return ResponsiveCard(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(
+              Icons.description_outlined,
+              size: 48,
+              color: AppTheme.primaryMaroon.withOpacity(0.5),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No reports found',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Generated reports will appear here',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.black.withOpacity(0.5),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: _filteredReports.map((report) => _buildReportCard(report)).toList(),
+    );
+  }
+
+  Widget _buildReportCard(Map<String, dynamic> report) {
+    return ResponsiveCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 16,
-                color: AppTheme.white.withOpacity(0.6),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryMaroon.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.borderLightGray,
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  _getReportTypeIcon(report['type']),
+                  color: AppTheme.primaryMaroon,
+                  size: 20,
+                ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      report['title'] ?? 'Unknown Report',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      report['period'] ?? 'Unknown Period',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.black.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: _getStatusColor(report['status']).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _getStatusColor(report['status']),
+                        width: 1,
+                      ),
+                    ),
+                    child: Text(
+                      report['status'].toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: _getStatusColor(report['status']),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    report['generated_date'] ?? 'Unknown Date',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.black.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              if (report['file_size'] != null)
+                Text(
+                  'Size: ${report['file_size']}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.black.withOpacity(0.6),
+                  ),
+                ),
               Text(
-                label,
+                'Downloads: ${report['download_count']}',
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppTheme.white.withOpacity(0.6),
+                  color: Colors.black.withOpacity(0.6),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.white,
-            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: report['status'] == 'completed'
+                      ? () {
+                          // TODO: Implement download functionality
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Downloading report...')),
+                          );
+                        }
+                      : null,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryMaroon,
+                    side: BorderSide(color: AppTheme.primaryMaroon),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.download, size: 16),
+                  label: const Text('Download'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    // TODO: Implement share functionality
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Share functionality coming soon!')),
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryMaroon,
+                    side: BorderSide(color: AppTheme.primaryMaroon),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.share, size: 16),
+                  label: const Text('Share'),
+                ),
+              ),
+            ],
           ),
         ],
       ),

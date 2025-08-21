@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../core/routes/app_router.dart';
+import '../../../../core/widgets/profile_picture_display.dart';
 
 class OrganizerProfileScreen extends StatefulWidget {
   const OrganizerProfileScreen({super.key});
@@ -75,39 +76,53 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
     }
   }
 
+  void _editProfile() {
+    Navigator.pushNamed(context, AppRouter.organizerEditProfile).then((result) async {
+      if (!mounted) return;
+      if (result == true) {
+        await _loadProfile();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile updated successfully'),
+            backgroundColor: AppTheme.primaryMaroon,
+          ),
+        );
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppTheme.backgroundPeach,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.backgroundPeach,
         elevation: 0,
         title: const Text(
           'Profile',
           style: TextStyle(
-            color: AppTheme.white,
+            color: Colors.black,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),
         actions: [
           IconButton(
-            onPressed: () {
-              Navigator.pushNamed(context, AppRouter.editProfile);
-            },
+            onPressed: _editProfile,
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.white.withOpacity(0.1),
+                color: AppTheme.primaryMaroon.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: AppTheme.white.withOpacity(0.2),
+                  color: AppTheme.primaryMaroon.withOpacity(0.3),
                   width: 1,
                 ),
               ),
               child: const Icon(
                 Icons.edit,
-                color: AppTheme.white,
+                color: AppTheme.primaryMaroon,
               ),
             ),
           ),
@@ -117,7 +132,7 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
       body: _isLoading
           ? Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.white),
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryMaroon),
               ),
             )
           : _error != null
@@ -128,7 +143,7 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
                       Text(
                         'Error loading profile',
                         style: TextStyle(
-                          color: AppTheme.white,
+                          color: Colors.black,
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
@@ -137,40 +152,243 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
                       Text(
                         _error!,
                         style: TextStyle(
-                          color: AppTheme.white.withOpacity(0.7),
+                          color: Colors.black.withOpacity(0.7),
                           fontSize: 14,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _loadProfile,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.white.withOpacity(0.2),
-                          foregroundColor: AppTheme.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                          backgroundColor: AppTheme.primaryMaroon,
+                          foregroundColor: Colors.white,
                         ),
                         child: const Text('Retry'),
                       ),
                     ],
                   ),
                 )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _buildProfileHeader(),
-                      const SizedBox(height: 24),
-                      _buildProfileStats(),
-                      const SizedBox(height: 24),
-                      _buildProfileInfo(),
-                      const SizedBox(height: 24),
-                      _buildSettingsSection(),
-                    ],
+              : RefreshIndicator(
+                  onRefresh: _loadProfile,
+                  color: AppTheme.primaryMaroon,
+                  backgroundColor: AppTheme.backgroundPeach,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        // Profile Header
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: AppTheme.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              // Profile Picture
+                              ProfilePictureDisplay(
+                                avatarUrl: _profile?['avatar_url'],
+                                size: 100,
+                                backgroundColor: AppTheme.primaryMaroon.withOpacity(0.1),
+                                iconColor: AppTheme.primaryMaroon,
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              // Company Name
+                              Text(
+                                _profile?['company_name'] ?? 'Unknown Company',
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 8),
+                              
+                              // Email
+                              Text(
+                                _profile?['email'] ?? 'No email provided',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.black.withOpacity(0.7),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        
+                        // Profile Information
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: AppTheme.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Profile Information',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              _buildInfoRow(Icons.phone, 'Phone', _profile?['phone'] ?? 'Not provided'),
+                              const SizedBox(height: 12),
+                              _buildInfoRow(Icons.location_on, 'Address', _profile?['address'] ?? 'Not provided'),
+                              const SizedBox(height: 12),
+                              _buildInfoRow(Icons.business, 'Company Type', _profile?['company_type'] ?? 'Not specified'),
+                              const SizedBox(height: 12),
+                              _buildInfoRow(Icons.description, 'Description', _profile?['description'] ?? 'No description provided'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        
+                        // Settings
+                        _buildSettings(),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
                   ),
                 ),
+    );
+  }
+
+  Widget _buildInfoRow(
+    IconData icon,
+    String title,
+    String value,
+  ) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryMaroon.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            icon,
+            color: AppTheme.primaryMaroon,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.black.withOpacity(0.7),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSettings() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Settings',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          _buildSettingsItem(
+            Icons.notifications,
+            'Notifications',
+            'Manage your notification preferences',
+            onTap: () {
+              Navigator.pushNamed(context, AppRouter.notificationSettings);
+            },
+          ),
+          _buildDivider(),
+          _buildSettingsItem(
+            Icons.security,
+            'Privacy & Security',
+            'Update your security settings',
+            onTap: () {
+              Navigator.pushNamed(context, AppRouter.privacySettings);
+            },
+          ),
+          _buildDivider(),
+          _buildSettingsItem(
+            Icons.help,
+            'Help & Support',
+            'Get help or contact support',
+            onTap: () {
+              Navigator.pushNamed(context, AppRouter.support);
+            },
+          ),
+          _buildDivider(),
+          _buildSettingsItem(
+            Icons.logout,
+            'Logout',
+            'Sign out of your account',
+            onTap: _handleLogout,
+            isDestructive: true,
+          ),
+        ],
+      ),
     );
   }
 
@@ -189,19 +407,11 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
         children: [
           Stack(
             children: [
-              CircleAvatar(
-                radius: 40,
+              ProfilePictureDisplay(
+                avatarUrl: _profile?['avatar_url'],
+                size: 80,
                 backgroundColor: AppTheme.white.withOpacity(0.2),
-                backgroundImage: _profile?['avatar_url'] != null
-                    ? NetworkImage(_profile!['avatar_url'])
-                    : null,
-                child: _profile?['avatar_url'] == null
-                    ? Icon(
-                        Icons.business,
-                        size: 40,
-                        color: AppTheme.white,
-                      )
-                    : null,
+                iconColor: AppTheme.white,
               ),
               Positioned(
                 right: 0,
@@ -502,13 +712,13 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: (isDestructive ? AppTheme.errorRed : AppTheme.white)
+                  color: (isDestructive ? AppTheme.errorRed : AppTheme.primaryMaroon)
                       .withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   icon,
-                  color: isDestructive ? AppTheme.errorRed : AppTheme.white,
+                  color: isDestructive ? AppTheme.errorRed : AppTheme.primaryMaroon,
                   size: 20,
                 ),
               ),
@@ -522,7 +732,7 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: isDestructive ? AppTheme.errorRed : AppTheme.white,
+                        color: isDestructive ? AppTheme.errorRed : Colors.black,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -530,8 +740,8 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
                       subtitle,
                       style: TextStyle(
                         fontSize: 14,
-                        color: (isDestructive ? AppTheme.errorRed : AppTheme.white)
-                            .withOpacity(0.8),
+                        color: (isDestructive ? AppTheme.errorRed : Colors.black)
+                            .withOpacity(0.7),
                       ),
                     ),
                   ],
@@ -539,7 +749,7 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
               ),
               Icon(
                 Icons.chevron_right,
-                color: (isDestructive ? AppTheme.errorRed : AppTheme.white)
+                color: (isDestructive ? AppTheme.errorRed : AppTheme.primaryMaroon)
                     .withOpacity(0.6),
               ),
             ],
@@ -552,7 +762,7 @@ class _OrganizerProfileScreenState extends State<OrganizerProfileScreen> {
   Widget _buildDivider() {
     return Container(
       height: 1,
-      color: AppTheme.white.withOpacity(0.1),
+      color: AppTheme.borderLightGray,
     );
   }
 }

@@ -92,8 +92,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   color: AppTheme.white.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(30),
                                   border: Border.all(
-                                    color: AppTheme.white.withOpacity(0.2),
-                                    width: 2,
+                                    color: AppTheme.borderLightGray,
                                   ),
                                 ),
                                 child: const AppLogo(
@@ -105,25 +104,22 @@ class _SplashScreenState extends State<SplashScreen>
                               const SizedBox(height: 30),
                               
                               // App Name
-                              const Text(
-                                'exhibae',
+                              Text(
+                                'Exhibae',
                                 style: TextStyle(
                                   fontSize: 48,
                                   fontWeight: FontWeight.bold,
-                                  color: AppTheme.white,
-                                  letterSpacing: 2,
+                                  color: Colors.black,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              
-                              // Tagline
+                              const SizedBox(height: 16),
                               Text(
-                                'estd 2023',
+                                'Your Gateway to Amazing Exhibitions',
                                 style: TextStyle(
-                                  fontSize: 16,
-                                  color: AppTheme.white.withOpacity(0.8),
-                                  fontWeight: FontWeight.w300,
+                                  fontSize: 18,
+                                  color: Colors.black.withOpacity(0.8),
                                 ),
+                                textAlign: TextAlign.center,
                               ),
                             ],
                           ),
@@ -145,7 +141,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: CircularProgressIndicator(
                         strokeWidth: 3,
                         valueColor: AlwaysStoppedAnimation<Color>(
-                          AppTheme.white.withOpacity(0.8),
+                          Colors.black.withOpacity(0.8),
                         ),
                       ),
                     ),
@@ -154,7 +150,7 @@ class _SplashScreenState extends State<SplashScreen>
                       'Loading...',
                       style: TextStyle(
                         fontSize: 16,
-                        color: AppTheme.white.withOpacity(0.8),
+                        color: Colors.black.withOpacity(0.8),
                         fontWeight: FontWeight.w500,
                       ),
                     ),

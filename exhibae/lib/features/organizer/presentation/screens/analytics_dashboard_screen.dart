@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/widgets/responsive_card.dart';
 
 class AnalyticsDashboardScreen extends StatefulWidget {
   const AnalyticsDashboardScreen({super.key});
@@ -11,82 +12,40 @@ class AnalyticsDashboardScreen extends StatefulWidget {
 
 class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
   final SupabaseService _supabaseService = SupabaseService.instance;
+  
+  Map<String, dynamic> _analyticsData = {};
   bool _isLoading = true;
-  Map<String, dynamic>? _analyticsData;
   String? _error;
-  String _selectedTimeRange = 'month';
+  String _selectedPeriod = 'month';
 
   @override
   void initState() {
     super.initState();
-    _loadAnalytics();
+    _loadAnalyticsData();
   }
 
-  Future<void> _loadAnalytics() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
+  Future<void> _loadAnalyticsData() async {
+    if (!mounted) return;
 
-      final userId = _supabaseService.currentUser?.id;
-      if (userId == null) {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final currentUser = _supabaseService.client.auth.currentUser;
+      if (currentUser == null) {
         throw Exception('User not authenticated');
       }
 
-      // Get exhibitions data
-      final exhibitions = await _supabaseService.getExhibitions();
-      final organizerExhibitions = exhibitions.where((exhibition) => 
-        exhibition['organiser']?['id'] == userId
-      ).toList();
-
-      // Get applications data
-      final applications = await _supabaseService.getStallApplications();
-      final exhibitionIds = organizerExhibitions.map((e) => e['id']).toList();
-      final exhibitionApplications = applications.where((app) => 
-        exhibitionIds.contains(app['exhibition_id'])
-      ).toList();
-
-      // Calculate analytics
-      final totalExhibitions = organizerExhibitions.length;
-      final activeExhibitions = organizerExhibitions.where((e) => 
-        e['status'] == 'published' || e['status'] == 'live'
-      ).length;
-      final totalApplications = exhibitionApplications.length;
-      final approvedApplications = exhibitionApplications.where((a) => 
-        a['status'] == 'approved'
-      ).length;
-      final totalRevenue = exhibitionApplications
-          .where((a) => a['status'] == 'approved')
-          .fold(0.0, (sum, app) => sum + (app['stall']?['price'] ?? 0.0));
-
-      // Calculate trends
-      final now = DateTime.now();
-      final startDate = _selectedTimeRange == 'month'
-          ? DateTime(now.year, now.month - 1, now.day)
-          : DateTime(now.year, now.month - 3, now.day);
-
-      final recentApplications = exhibitionApplications.where((app) {
-        final createdAt = DateTime.parse(app['created_at']);
-        return createdAt.isAfter(startDate);
-      }).toList();
-
-      final applicationTrend = recentApplications.length;
-      final revenueTrend = recentApplications
-          .where((a) => a['status'] == 'approved')
-          .fold(0.0, (sum, app) => sum + (app['stall']?['price'] ?? 0.0));
+      final analytics = await _supabaseService.getAnalyticsData(
+        organizerId: currentUser.id,
+        period: _selectedPeriod,
+      );
 
       if (mounted) {
         setState(() {
-          _analyticsData = {
-            'totalExhibitions': totalExhibitions,
-            'activeExhibitions': activeExhibitions,
-            'totalApplications': totalApplications,
-            'approvedApplications': approvedApplications,
-            'totalRevenue': totalRevenue,
-            'applicationTrend': applicationTrend,
-            'revenueTrend': revenueTrend,
-          };
+          _analyticsData = analytics;
           _isLoading = false;
         });
       }
@@ -103,77 +62,43 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppTheme.backgroundPeach,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          'Analytics',
+        title: Text(
+          'Analytics Dashboard',
           style: TextStyle(
-            color: AppTheme.white,
-            fontSize: 24,
+            color: AppTheme.primaryMaroon,
             fontWeight: FontWeight.bold,
           ),
         ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: AppTheme.primaryMaroon),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: AppTheme.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: AppTheme.white.withOpacity(0.2),
-                width: 1,
-              ),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _selectedTimeRange,
-                items: [
-                  DropdownMenuItem(
-                    value: 'month',
-                    child: Text(
-                      'Last Month',
-                      style: TextStyle(
-                        color: AppTheme.white,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: 'quarter',
-                    child: Text(
-                      'Last Quarter',
-                      style: TextStyle(
-                        color: AppTheme.white,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      _selectedTimeRange = value;
-                    });
-                    _loadAnalytics();
-                  }
-                },
-                dropdownColor: AppTheme.gradientBlack,
-                icon: Icon(
-                  Icons.arrow_drop_down,
-                  color: AppTheme.white,
-                ),
-              ),
-            ),
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert, color: AppTheme.primaryMaroon),
+            onSelected: (value) {
+              setState(() {
+                _selectedPeriod = value;
+              });
+              _loadAnalyticsData();
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(value: 'week', child: Text('This Week')),
+              PopupMenuItem(value: 'month', child: Text('This Month')),
+              PopupMenuItem(value: 'quarter', child: Text('This Quarter')),
+              PopupMenuItem(value: 'year', child: Text('This Year')),
+            ],
           ),
         ],
       ),
       body: _isLoading
           ? Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.white),
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryMaroon),
               ),
             )
           : _error != null
@@ -184,7 +109,7 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
                       Text(
                         'Error loading analytics',
                         style: TextStyle(
-                          color: AppTheme.white,
+                          color: Colors.black,
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
@@ -193,131 +118,85 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
                       Text(
                         _error!,
                         style: TextStyle(
-                          color: AppTheme.white.withOpacity(0.7),
+                          color: Colors.black.withOpacity(0.7),
                           fontSize: 14,
                         ),
+                        textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: _loadAnalytics,
+                        onPressed: _loadAnalyticsData,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.white.withOpacity(0.2),
-                          foregroundColor: AppTheme.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                          backgroundColor: AppTheme.primaryMaroon,
+                          foregroundColor: Colors.white,
                         ),
                         child: const Text('Retry'),
                       ),
                     ],
                   ),
                 )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Overview Section
-                      _buildSection(
-                        'Overview',
-                        Icons.analytics,
-                        [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildStatCard(
-                                  'Total Exhibitions',
-                                  _analyticsData!['totalExhibitions'].toString(),
-                                  Icons.event,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: _buildStatCard(
-                                  'Active Exhibitions',
-                                  _analyticsData!['activeExhibitions'].toString(),
-                                  Icons.event_available,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildStatCard(
-                                  'Total Applications',
-                                  _analyticsData!['totalApplications'].toString(),
-                                  Icons.assignment,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: _buildStatCard(
-                                  'Approved Applications',
-                                  _analyticsData!['approvedApplications'].toString(),
-                                  Icons.check_circle,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Revenue Section
-                      _buildSection(
-                        'Revenue',
-                        Icons.payments,
-                        [
-                          _buildRevenueCard(
-                            'Total Revenue',
-                            '₹${_analyticsData!['totalRevenue'].toStringAsFixed(2)}',
-                            'Revenue this ${_selectedTimeRange == 'month' ? 'month' : 'quarter'}: ₹${_analyticsData!['revenueTrend'].toStringAsFixed(2)}',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Trends Section
-                      _buildSection(
-                        'Trends',
-                        Icons.trending_up,
-                        [
-                          _buildTrendCard(
-                            'Applications',
-                            _analyticsData!['applicationTrend'],
-                            _analyticsData!['totalApplications'],
-                            _selectedTimeRange == 'month' ? 'Last Month' : 'Last Quarter',
-                          ),
-                          const SizedBox(height: 16),
-                          _buildTrendCard(
-                            'Revenue',
-                            _analyticsData!['revenueTrend'],
-                            _analyticsData!['totalRevenue'],
-                            _selectedTimeRange == 'month' ? 'Last Month' : 'Last Quarter',
-                            isRevenue: true,
-                          ),
-                        ],
-                      ),
-                    ],
+              : RefreshIndicator(
+                  onRefresh: _loadAnalyticsData,
+                  color: AppTheme.primaryMaroon,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildOverviewCards(),
+                        const SizedBox(height: 20),
+                        _buildRevenueSection(),
+                        const SizedBox(height: 20),
+                        _buildTopIndustriesSection(),
+                        const SizedBox(height: 20),
+                        _buildApplicationTrendsSection(),
+                      ],
+                    ),
                   ),
                 ),
     );
   }
 
-  Widget _buildSection(String title, IconData icon, List<Widget> children) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
-          width: 1,
+  Widget _buildOverviewCards() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 1.5,
+      children: [
+        _buildOverviewCard(
+          'Total Revenue',
+          '\$${_analyticsData['total_revenue']?.toStringAsFixed(0) ?? '0'}',
+          Icons.attach_money,
+          AppTheme.primaryMaroon,
         ),
-      ),
+        _buildOverviewCard(
+          'Total Exhibitions',
+          '${_analyticsData['total_exhibitions'] ?? 0}',
+          Icons.event,
+          AppTheme.primaryBlue,
+        ),
+        _buildOverviewCard(
+          'Applications',
+          '${_analyticsData['total_applications'] ?? 0}',
+          Icons.assignment,
+          Colors.green,
+        ),
+        _buildOverviewCard(
+          'Approval Rate',
+          '${_analyticsData['approval_rate']?.toStringAsFixed(1) ?? '0'}%',
+          Icons.trending_up,
+          Colors.orange,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOverviewCard(String title, String value, IconData icon, Color color) {
+    return ResponsiveCard(
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -326,74 +205,42 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.white.withOpacity(0.1),
+                  color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.borderLightGray,
+                    width: 1,
+                  ),
                 ),
                 child: Icon(
                   icon,
-                  color: AppTheme.white,
+                  color: color,
                   size: 20,
                 ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                title,
-                style: TextStyle(
-                  color: AppTheme.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+              const Spacer(),
+              Icon(
+                Icons.trending_up,
+                color: Colors.green,
+                size: 16,
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: AppTheme.white,
-              size: 24,
-            ),
           ),
           const SizedBox(height: 12),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: AppTheme.white,
+              color: color,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             title,
             style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.white.withOpacity(0.8),
+              fontSize: 12,
+              color: Colors.black.withOpacity(0.7),
             ),
           ),
         ],
@@ -401,157 +248,168 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
     );
   }
 
-  Widget _buildRevenueCard(String title, String value, String subtitle) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
+  Widget _buildRevenueSection() {
+    return ResponsiveCard(
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
+            'Revenue Trend',
             style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.white.withOpacity(0.8),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 32,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppTheme.white,
+              color: AppTheme.primaryMaroon,
             ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 12,
-                color: AppTheme.white.withOpacity(0.8),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTrendCard(String title, double recent, double total, String period, {bool isRevenue = false}) {
-    final percentage = total > 0 ? (recent / total * 100).round() : 0;
-    final formattedRecent = isRevenue ? '₹${recent.toStringAsFixed(2)}' : recent.toString();
-    final formattedTotal = isRevenue ? '₹${total.toStringAsFixed(2)}' : total.toString();
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.white,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppTheme.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  '$percentage% of total',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.white.withOpacity(0.8),
-                  ),
-                ),
-              ),
-            ],
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          SizedBox(
+            height: 200,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: (_analyticsData['revenue_trend'] as List<dynamic>? ?? []).map((data) {
+                final height = (data['revenue'] as int) / 30000 * 150; // Normalize to max 150 height
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text(
-                      period,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.white.withOpacity(0.8),
+                    Container(
+                      width: 30,
+                      height: height,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryMaroon,
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     Text(
-                      formattedRecent,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.white,
+                      data['month'],
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.black.withOpacity(0.7),
                       ),
                     ),
                   ],
-                ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopIndustriesSection() {
+    final industries = _analyticsData['top_industries'] as List<dynamic>? ?? [];
+    
+    return ResponsiveCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Top Industries',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryMaroon,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...industries.map((industry) => _buildIndustryRow(industry)).toList(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIndustryRow(Map<String, dynamic> industry) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              industry['name'] ?? 'Unknown',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
-              Container(
-                width: 1,
-                height: 40,
-                color: AppTheme.white.withOpacity(0.2),
-                margin: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Text(
+              '${industry['count']}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primaryMaroon,
               ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              textAlign: TextAlign.center,
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Text(
+              '${industry['percentage']}%',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.black.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApplicationTrendsSection() {
+    return ResponsiveCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Application Trends',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryMaroon,
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 200,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: (_analyticsData['application_trend'] as List<dynamic>? ?? []).map((data) {
+                final height = (data['applications'] as int) / 25 * 150; // Normalize to max 150 height
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text(
-                      'Total',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.white.withOpacity(0.8),
+                    Container(
+                      width: 30,
+                      height: height,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryBlue,
+                        borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     Text(
-                      formattedTotal,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.white,
+                      data['month'],
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.black.withOpacity(0.7),
                       ),
                     ),
                   ],
-                ),
-              ),
-            ],
+                );
+              }).toList(),
+            ),
           ),
         ],
       ),

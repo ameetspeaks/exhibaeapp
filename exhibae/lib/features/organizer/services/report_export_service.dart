@@ -98,9 +98,11 @@ class ReportExportService {
       await file.writeAsString(csv);
       
       // Share file
-      await Share.shareXFiles(
-        [XFile(path)],
-        subject: fileName,
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(path)],
+          subject: fileName,
+        ),
       );
     } catch (e) {
       rethrow;
@@ -121,9 +123,11 @@ class ReportExportService {
       await file.writeAsString(jsonString);
       
       // Share file
-      await Share.shareXFiles(
-        [XFile(path)],
-        subject: fileName,
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(path)],
+          subject: fileName,
+        ),
       );
     } catch (e) {
       rethrow;

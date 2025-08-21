@@ -46,27 +46,29 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         ),
                         child: const Icon(
-                          Icons.apps,
-                          color: AppTheme.white,
+                          Icons.explore,
+                          color: Colors.black,
                           size: 40,
                         ),
                       ),
                       const SizedBox(height: 20),
-                      const Text(
+                      Text(
                         'Welcome to Exhibae',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.white,
+                          color: Colors.black,
                         ),
+                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       Text(
-                        'Choose how you\'d like to get started',
+                        'Your gateway to amazing exhibitions and events',
                         style: TextStyle(
-                          fontSize: 16,
-                          color: AppTheme.white.withOpacity(0.8),
+                          fontSize: 18,
+                          color: Colors.black.withOpacity(0.8),
                         ),
+                        textAlign: TextAlign.center,
                       ),
                     ],
                   ),
@@ -81,8 +83,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     color: AppTheme.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: AppTheme.white.withOpacity(0.2),
-                      width: 1,
+                      color: AppTheme.borderLightGray,
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -101,8 +102,8 @@ class _AuthScreenState extends State<AuthScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
-                          Icons.login,
-                          color: AppTheme.white,
+                          Icons.manage_accounts,
+                          color: Colors.black,
                           size: 40,
                         ),
                       ),
@@ -162,8 +163,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     color: AppTheme.white.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: AppTheme.white.withOpacity(0.2),
-                      width: 1,
+                      color: AppTheme.borderLightGray,
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -182,8 +182,8 @@ class _AuthScreenState extends State<AuthScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
-                          Icons.person_add,
-                          color: AppTheme.white,
+                          Icons.people,
+                          color: Colors.black,
                           size: 40,
                         ),
                       ),
@@ -193,7 +193,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.white,
+                          color: Colors.black,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -201,7 +201,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         'New to Exhibae? Create your account to get started',
                         style: TextStyle(
                           fontSize: 14,
-                          color: AppTheme.white.withOpacity(0.8),
+                          color: Colors.black.withOpacity(0.8),
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -213,7 +213,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             Navigator.pushNamed(context, AppRouter.signup);
                           },
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: AppTheme.white, width: 2),
+                            side: const BorderSide(color: AppTheme.borderLightGray, width: 2),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -224,7 +224,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.white,
+                              color: Colors.black,
                             ),
                           ),
                         ),

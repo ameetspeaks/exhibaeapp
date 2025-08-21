@@ -44,7 +44,7 @@ class ResponsiveCard extends StatelessWidget {
           ),
         ],
         border: border ?? Border.all(
-          color: AppTheme.white.withOpacity(0.2),
+          color: AppTheme.borderLightGray,
           width: 1,
         ),
       ),
@@ -104,7 +104,7 @@ class ResponsiveGridCard extends StatelessWidget {
           ),
         ],
         border: border ?? Border.all(
-          color: AppTheme.white.withOpacity(0.2),
+          color: AppTheme.borderLightGray,
           width: 1,
         ),
       ),

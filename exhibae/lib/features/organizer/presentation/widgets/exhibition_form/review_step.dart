@@ -16,8 +16,8 @@ class _ReviewStepState extends State<ReviewStep> {
   Map<String, dynamic>? _categoryData;
   Map<String, dynamic>? _eventTypeData;
   Map<String, dynamic>? _venueTypeData;
-  Map<String, dynamic>? _measurementUnitData;
   List<Map<String, dynamic>> _selectedAmenities = [];
+  List<Map<String, dynamic>> _measurementUnits = [];
   bool _isLoading = true;
   String? _error;
 
@@ -62,22 +62,19 @@ class _ReviewStepState extends State<ReviewStep> {
         _venueTypeData = venueTypeResponse;
       }
 
-      // Load measurement unit data
-      if (formData.measurementUnitId != null) {
-        final measurementUnitResponse = await _supabaseService.client
-            .from('measurement_units')
-            .select()
-            .eq('id', formData.measurementUnitId ?? '')
-            .single();
-        _measurementUnitData = measurementUnitResponse;
-      }
+      // Load measurement units
+      final measurementUnitsResponse = await _supabaseService.client
+          .from('measurement_units')
+          .select()
+          .eq('type', 'area');
+      _measurementUnits = List<Map<String, dynamic>>.from(measurementUnitsResponse);
 
       // Load amenities data
-      if (formData.amenities.isNotEmpty) {
+      if (formData.selectedAmenities.isNotEmpty) {
         final amenitiesResponse = await _supabaseService.client
             .from('amenities')
             .select()
-            .filter('id', 'in', formData.amenities);
+            .inFilter('id', formData.selectedAmenities);
         _selectedAmenities = List<Map<String, dynamic>>.from(amenitiesResponse);
       }
 
@@ -115,7 +112,7 @@ class _ReviewStepState extends State<ReviewStep> {
           Text(
             'Review your exhibition details before submitting',
             style: TextStyle(
-              color: AppTheme.white.withOpacity(0.8),
+              color: AppTheme.white.withValues(alpha: 0.8),
               fontSize: 14,
             ),
           ),
@@ -144,7 +141,7 @@ class _ReviewStepState extends State<ReviewStep> {
                   Text(
                     _error!,
                     style: TextStyle(
-                      color: AppTheme.white.withOpacity(0.7),
+                      color: AppTheme.white.withValues(alpha: 0.7),
                       fontSize: 14,
                     ),
                   ),
@@ -152,7 +149,7 @@ class _ReviewStepState extends State<ReviewStep> {
                   ElevatedButton(
                     onPressed: _loadReferenceData,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.white.withOpacity(0.2),
+                      backgroundColor: AppTheme.white.withValues(alpha: 0.2),
                       foregroundColor: AppTheme.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       shape: RoundedRectangleBorder(
@@ -188,10 +185,20 @@ class _ReviewStepState extends State<ReviewStep> {
                               ? '${_formatDate(formData.startDate!)} - ${_formatDate(formData.endDate!)}'
                               : 'Not set',
                         ),
-                        if (formData.expectedVisitors != null)
+                        if (formData.startTime != null)
                           _buildInfoItem(
-                            'Expected Visitors',
-                            formData.expectedVisitors.toString(),
+                            'Start Time',
+                            '${formData.startTime!.hour.toString().padLeft(2, '0')}:${formData.startTime!.minute.toString().padLeft(2, '0')}',
+                          ),
+                        if (formData.endTime != null)
+                          _buildInfoItem(
+                            'End Time',
+                            '${formData.endTime!.hour.toString().padLeft(2, '0')}:${formData.endTime!.minute.toString().padLeft(2, '0')}',
+                          ),
+                        if (formData.applicationDeadline != null)
+                          _buildInfoItem(
+                            'Application Deadline',
+                            _formatDate(formData.applicationDeadline!),
                           ),
                       ],
                     ),
@@ -208,22 +215,53 @@ class _ReviewStepState extends State<ReviewStep> {
                         _buildInfoItem('City', formData.city),
                         _buildInfoItem('State', formData.state),
                         _buildInfoItem('Country', formData.country),
+                        if (formData.postalCode != null)
+                          _buildInfoItem('Postal Code', formData.postalCode!),
                       ],
                     ),
                     const SizedBox(height: 24),
 
-                    // Media Section
+                    // Stalls Section
                     _buildSection(
-                      'Media',
+                      'Stalls',
+                      Icons.store,
+                      [
+                        _buildInfoItem(
+                          'Number of Stall Types',
+                          formData.stalls.length.toString(),
+                        ),
+                        ...formData.stalls.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final stall = entry.value;
+                          final unit = _measurementUnits.firstWhere(
+                            (u) => u['id'] == stall['unit_id'],
+                            orElse: () => {'name': 'Unknown', 'symbol': ''},
+                          );
+                          return _buildInfoItem(
+                            'Stall ${index + 1}',
+                            '${stall['name']} - ${stall['length']} × ${stall['width']} ${unit['symbol']} - ₹${stall['price']} - Qty: ${stall['quantity']}',
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Gallery Section
+                    _buildSection(
+                      'Gallery & Images',
                       Icons.image,
                       [
                         _buildInfoItem(
-                          'Exhibition Images',
-                          '${formData.images.length} images uploaded',
+                          'Cover Images',
+                          '${_getImagesByType(formData.galleryImages, 'cover').length} images',
                         ),
                         _buildInfoItem(
-                          'Floor Plan',
-                          formData.floorPlan != null ? 'Uploaded' : 'Not uploaded',
+                          'Exhibition Images',
+                          '${_getImagesByType(formData.galleryImages, 'exhibition').length} images',
+                        ),
+                        _buildInfoItem(
+                          'Layout Images',
+                          '${_getImagesByType(formData.galleryImages, 'layout').length} images',
                         ),
                       ],
                     ),
@@ -244,24 +282,8 @@ class _ReviewStepState extends State<ReviewStep> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Pricing Section
-                    _buildSection(
-                      'Pricing',
-                      Icons.payments,
-                      [
-                        _buildInfoItem(
-                          'Starting Price',
-                          formData.stallStartingPrice != null
-                              ? '₹${formData.stallStartingPrice}'
-                              : 'Not set',
-                        ),
-                        if (_measurementUnitData != null)
-                          _buildInfoItem(
-                            'Measurement Unit',
-                            '${_measurementUnitData!['name']} (${_measurementUnitData!['symbol']})',
-                          ),
-                      ],
-                    ),
+                    // Approval Section
+                    _buildApprovalSection(),
                   ],
                 );
               },
@@ -271,14 +293,18 @@ class _ReviewStepState extends State<ReviewStep> {
     );
   }
 
+  List<Map<String, dynamic>> _getImagesByType(List<Map<String, dynamic>> images, String type) {
+    return images.where((image) => image['image_type'] == type).toList();
+  }
+
   Widget _buildSection(String title, IconData icon, List<Widget> children) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
+        color: AppTheme.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
+          color: AppTheme.white.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -290,7 +316,7 @@ class _ReviewStepState extends State<ReviewStep> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.white.withOpacity(0.1),
+                  color: AppTheme.white.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -326,7 +352,7 @@ class _ReviewStepState extends State<ReviewStep> {
           Text(
             label,
             style: TextStyle(
-              color: AppTheme.white.withOpacity(0.8),
+              color: AppTheme.white.withValues(alpha: 0.8),
               fontSize: 14,
             ),
           ),
@@ -345,5 +371,138 @@ class _ReviewStepState extends State<ReviewStep> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  Widget _buildApprovalSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.white.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.approval,
+                  color: AppTheme.white,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Submit for Approval',
+                style: TextStyle(
+                  color: AppTheme.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'By submitting this exhibition for approval, you acknowledge that:',
+            style: TextStyle(
+              color: AppTheme.white.withOpacity(0.8),
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildApprovalItem(
+            'All information provided is accurate and complete',
+            Icons.check_circle,
+          ),
+          _buildApprovalItem(
+            'The exhibition will be reviewed by a manager/admin',
+            Icons.admin_panel_settings,
+          ),
+          _buildApprovalItem(
+            'Approval may take 24-48 hours',
+            Icons.schedule,
+          ),
+          _buildApprovalItem(
+            'You will be notified once approved or rejected',
+            Icons.notifications,
+          ),
+          const SizedBox(height: 20),
+          Consumer<ExhibitionFormState>(
+            builder: (context, state, child) {
+              return Container(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: state.formData.isValid
+                      ? () async {
+                          // This will be handled by the main form screen
+                          // The button in the main screen will call submitForApproval
+                        }
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: state.formData.isValid
+                        ? AppTheme.white.withOpacity(0.2)
+                        : AppTheme.white.withOpacity(0.1),
+                    foregroundColor: AppTheme.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 16,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.send),
+                  label: Text(
+                    state.formData.isValid
+                        ? 'Submit for Approval'
+                        : 'Complete Required Fields',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApprovalItem(String text, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: AppTheme.white.withOpacity(0.6),
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: AppTheme.white.withOpacity(0.8),
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

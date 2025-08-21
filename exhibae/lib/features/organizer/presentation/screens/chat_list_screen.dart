@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/widgets/profile_picture_display.dart';
 import '../../../../core/routes/app_router.dart';
 import '../../services/chat_notification_service.dart';
 
@@ -377,21 +378,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 24,
+                ProfilePictureDisplay(
+                  avatarUrl: brand['avatar_url'],
+                  size: 48,
                   backgroundColor: AppTheme.white.withOpacity(0.1),
-                  backgroundImage: brand['avatar_url'] != null
-                      ? NetworkImage(brand['avatar_url'])
-                      : null,
-                  child: brand['avatar_url'] == null
-                      ? Text(
-                          brand['company_name']?.substring(0, 1).toUpperCase() ?? 'B',
-                          style: TextStyle(
-                            color: AppTheme.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        )
-                      : null,
+                  iconColor: AppTheme.white,
                 ),
                 const SizedBox(width: 16),
                 Expanded(

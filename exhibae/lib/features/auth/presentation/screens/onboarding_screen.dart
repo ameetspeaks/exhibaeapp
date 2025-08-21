@@ -79,7 +79,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Text(
                       'Skip',
                       style: TextStyle(
-                        color: AppTheme.white.withOpacity(0.8),
+                        color: Colors.black.withOpacity(0.8),
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                       ),
@@ -121,8 +121,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: _currentPage == index
-                                ? AppTheme.white
-                                : AppTheme.white.withOpacity(0.3),
+                                ? Colors.black
+                                : Colors.black.withOpacity(0.3),
                           ),
                         ),
                       ),
@@ -171,14 +171,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               color: AppTheme.white.withOpacity(0.1),
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
-                color: AppTheme.white.withOpacity(0.2),
-                width: 2,
+                color: AppTheme.borderLightGray,
               ),
             ),
             child: Icon(
               page.icon,
               size: 80,
-              color: AppTheme.white,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 40),
@@ -189,7 +188,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             style: const TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
-              color: AppTheme.white,
+              color: Colors.black,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Your gateway to amazing exhibitions and events',
+            style: TextStyle(
+              fontSize: 18,
+              color: Colors.black.withOpacity(0.8),
             ),
             textAlign: TextAlign.center,
           ),
@@ -200,7 +208,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             page.description,
             style: TextStyle(
               fontSize: 18,
-              color: AppTheme.white.withOpacity(0.8),
+              color: AppTheme.primaryMaroon,
               height: 1.5,
             ),
             textAlign: TextAlign.center,

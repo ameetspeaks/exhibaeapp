@@ -38,19 +38,84 @@ class _MediaStepState extends State<MediaStep> {
             final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.name}';
             final path = 'exhibition-images/$fileName';
             
-            await _supabaseService.client.storage
-                .from('exhibition-images')
-                .uploadBinary(path, file.bytes!);
+            try {
+              await _supabaseService.client.storage
+                  .from('exhibition-assets')
+                  .uploadBinary(path, file.bytes!);
 
-            final url = _supabaseService.getPublicUrl('exhibition-images', path);
-            uploadedUrls.add(url);
+              final url = _supabaseService.getPublicUrl('exhibition-assets', path);
+              uploadedUrls.add(url);
+            } catch (uploadError) {
+              print('Error uploading image $fileName: $uploadError');
+              // Continue with other files even if one fails
+            }
           }
         }
 
-        if (mounted) {
+        if (mounted && uploadedUrls.isNotEmpty) {
           formState.updateMedia(
             images: [...formState.formData.images, ...uploadedUrls],
           );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _uploadError = e.toString();
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _pickAndUploadGalleryImages() async {
+    try {
+      setState(() {
+        _isUploading = true;
+        _uploadError = null;
+      });
+
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: true,
+      );
+
+      if (result != null && result.files.isNotEmpty) {
+        final formState = Provider.of<ExhibitionFormState>(context, listen: false);
+        final List<Map<String, dynamic>> newGalleryImages = [];
+
+        for (final file in result.files) {
+          if (file.bytes != null) {
+            final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.name}';
+            final path = 'gallery-images/$fileName';
+            
+            try {
+              await _supabaseService.client.storage
+                  .from('exhibition-assets')
+                  .uploadBinary(path, file.bytes!);
+
+              final url = _supabaseService.getPublicUrl('exhibition-assets', path);
+              
+              // Add to gallery images with type 'gallery'
+              newGalleryImages.add({
+                'image_url': url,
+                'image_type': 'gallery',
+                'created_at': DateTime.now().toIso8601String(),
+              });
+            } catch (uploadError) {
+              print('Error uploading gallery image $fileName: $uploadError');
+              // Continue with other files even if one fails
+            }
+          }
+        }
+
+        if (mounted && newGalleryImages.isNotEmpty) {
+          formState.updateGalleryImages([...formState.formData.galleryImages, ...newGalleryImages]);
         }
       }
     } catch (e) {
@@ -86,16 +151,25 @@ class _MediaStepState extends State<MediaStep> {
           final fileName = '${DateTime.now().millisecondsSinceEpoch}_${file.name}';
           final path = 'floor-plans/$fileName';
           
-          await _supabaseService.client.storage
-              .from('floor-plans')
-              .uploadBinary(path, file.bytes!);
+          try {
+            await _supabaseService.client.storage
+                .from('exhibition-assets')
+                .uploadBinary(path, file.bytes!);
 
-          final url = _supabaseService.getPublicUrl('floor-plans', path);
-          
-          if (mounted) {
-            Provider.of<ExhibitionFormState>(context, listen: false).updateMedia(
-              floorPlan: url,
-            );
+            final url = _supabaseService.getPublicUrl('exhibition-assets', path);
+            
+            if (mounted) {
+              Provider.of<ExhibitionFormState>(context, listen: false).updateMedia(
+                floorPlan: url,
+              );
+            }
+          } catch (uploadError) {
+            print('Error uploading floor plan: $uploadError');
+            if (mounted) {
+              setState(() {
+                _uploadError = 'Failed to upload floor plan: $uploadError';
+              });
+            }
           }
         }
       }
@@ -114,15 +188,26 @@ class _MediaStepState extends State<MediaStep> {
     }
   }
 
-  Future<void> _removeImage(int index) async {
+  void _removeImage(int index) {
     final formState = Provider.of<ExhibitionFormState>(context, listen: false);
-    final images = List<String>.from(formState.formData.images);
-    images.removeAt(index);
-    formState.updateMedia(images: images);
+    final updatedImages = List<String>.from(formState.formData.images);
+    updatedImages.removeAt(index);
+    
+    formState.updateMedia(images: updatedImages);
   }
 
-  Future<void> _removeFloorPlan() async {
-    Provider.of<ExhibitionFormState>(context, listen: false).updateMedia(floorPlan: null);
+  void _removeGalleryImage(int index) {
+    final formState = Provider.of<ExhibitionFormState>(context, listen: false);
+    final updatedGalleryImages = List<Map<String, dynamic>>.from(formState.formData.galleryImages);
+    updatedGalleryImages.removeAt(index);
+    
+    formState.updateGalleryImages(updatedGalleryImages);
+  }
+
+  void _removeFloorPlan() {
+    Provider.of<ExhibitionFormState>(context, listen: false).updateMedia(
+      floorPlan: null,
+    );
   }
 
   @override
@@ -275,6 +360,142 @@ class _MediaStepState extends State<MediaStep> {
                                 )
                               : const Icon(Icons.add_photo_alternate),
                           label: Text(_isUploading ? 'Uploading...' : 'Add Images'),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          
+          // Gallery Images Section
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.white.withOpacity(0.2),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Gallery Images',
+                  style: TextStyle(
+                    color: AppTheme.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Upload additional gallery images for your exhibition',
+                  style: TextStyle(
+                    color: AppTheme.white.withOpacity(0.8),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Consumer<ExhibitionFormState>(
+                  builder: (context, state, child) {
+                    return Column(
+                      children: [
+                        if (state.formData.galleryImages.isNotEmpty) ...[
+                          SizedBox(
+                            height: 120,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: state.formData.galleryImages.length,
+                              itemBuilder: (context, index) {
+                                final galleryImage = state.formData.galleryImages[index];
+                                return Container(
+                                  width: 120,
+                                  margin: const EdgeInsets.only(right: 12),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.white.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: AppTheme.white.withOpacity(0.2),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(8),
+                                        child: Image.network(
+                                          galleryImage['image_url'] as String,
+                                          fit: BoxFit.cover,
+                                          width: 120,
+                                          height: 120,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return Container(
+                                              color: AppTheme.white.withOpacity(0.1),
+                                              child: Icon(
+                                                Icons.image_not_supported,
+                                                color: AppTheme.white.withOpacity(0.6),
+                                                size: 32,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      Positioned(
+                                        top: 4,
+                                        right: 4,
+                                        child: IconButton(
+                                          onPressed: () => _removeGalleryImage(index),
+                                          icon: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.errorRed.withOpacity(0.8),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                              Icons.close,
+                                              color: AppTheme.white,
+                                              size: 16,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        ElevatedButton.icon(
+                          onPressed: _isUploading ? null : _pickAndUploadGalleryImages,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.white.withOpacity(0.2),
+                            foregroundColor: AppTheme.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          icon: _isUploading
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(AppTheme.white),
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.photo_library),
+                          label: Text(_isUploading ? 'Uploading...' : 'Add Gallery Images'),
                         ),
                       ],
                     );

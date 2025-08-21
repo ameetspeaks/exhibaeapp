@@ -111,10 +111,14 @@ class _BrandApplicationsScreenState extends State<BrandApplicationsScreen>
       case 'approved':
       case 'booked':
         return AppTheme.successGreen;
+      case 'completed':
+        return AppTheme.primaryBlue;
       case 'pending':
         return AppTheme.warningOrange;
       case 'rejected':
         return AppTheme.errorRed;
+      case 'cancelled':
+        return AppTheme.textMediumGray;
       case 'payment_pending':
       case 'payment_review':
         return AppTheme.primaryBlue;
@@ -128,10 +132,14 @@ class _BrandApplicationsScreenState extends State<BrandApplicationsScreen>
       case 'approved':
       case 'booked':
         return Icons.check_circle;
+      case 'completed':
+        return Icons.event_available;
       case 'pending':
         return Icons.schedule;
       case 'rejected':
         return Icons.cancel;
+      case 'cancelled':
+        return Icons.cancel_outlined;
       case 'payment_pending':
       case 'payment_review':
       case 'payment':
@@ -147,10 +155,14 @@ class _BrandApplicationsScreenState extends State<BrandApplicationsScreen>
         return 'Approved';
       case 'booked':
         return 'Booked';
+      case 'completed':
+        return 'Completed';
       case 'pending':
         return 'Pending';
       case 'rejected':
         return 'Rejected';
+      case 'cancelled':
+        return 'Cancelled';
       case 'payment_pending':
         return 'Payment Pending';
       case 'payment_review':
@@ -182,6 +194,18 @@ class _BrandApplicationsScreenState extends State<BrandApplicationsScreen>
         );
       }
     }
+  }
+
+  void _navigateToPaymentSubmission(Map<String, dynamic> application) {
+    Navigator.pushNamed(
+      context,
+      AppRouter.paymentSubmission,
+      arguments: {'application': application},
+    ).then((result) {
+      if (result == true) {
+        _loadApplications(); // Reload the list after payment submission
+      }
+    });
   }
 
   @override
@@ -670,6 +694,20 @@ class _BrandApplicationsScreenState extends State<BrandApplicationsScreen>
                             ),
                           ),
                           child: const Text('Cancel'),
+                        ),
+                      ),
+                    if (status.toLowerCase() == 'payment_pending')
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _navigateToPaymentSubmission(application),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryMaroon,
+                            foregroundColor: AppTheme.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: const Text('Make Payment'),
                         ),
                       ),
                   ],

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/profile_picture_widget.dart';
+import '../../../../core/widgets/company_logo_widget.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -23,6 +26,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool _isLoading = false;
   bool _isSaving = false;
   Map<String, dynamic>? _profile;
+  String? _currentAvatarUrl;
+  String? _currentLogoUrl;
   
   @override
   void initState() {
@@ -53,6 +58,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (profile != null) {
           setState(() {
             _profile = profile;
+            _currentAvatarUrl = profile['avatar_url'];
+            _currentLogoUrl = profile['company_logo_url'];
             _fullNameController.text = profile['full_name'] ?? '';
             _companyNameController.text = profile['company_name'] ?? '';
             _phoneController.text = profile['phone'] ?? '';
@@ -77,6 +84,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
   
+  void _onAvatarChanged(String? newAvatarUrl) {
+    setState(() {
+      _currentAvatarUrl = newAvatarUrl;
+    });
+  }
+
+  void _onAvatarDeleted() {
+    setState(() {
+      _currentAvatarUrl = null;
+    });
+  }
+
+  void _onLogoChanged(String? newLogoUrl) {
+    setState(() {
+      _currentLogoUrl = newLogoUrl;
+    });
+  }
+
+  void _onLogoDeleted() {
+    setState(() {
+      _currentLogoUrl = null;
+    });
+  }
+
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -150,33 +181,51 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Profile Picture Section
+                    // Profile Picture and Company Logo Section
                     Center(
-                      child: Column(
-                        children: [
-                          CircleAvatar(
-                            radius: 50,
-                            backgroundImage: _profile?['avatar_url'] != null
-                                ? NetworkImage(_profile!['avatar_url'])
-                                : null,
-                            child: _profile?['avatar_url'] == null
-                                ? const Icon(Icons.person, size: 50)
-                                : null,
-                          ),
-                          const SizedBox(height: 16),
-                          TextButton(
-                            onPressed: () {
-                              // TODO: Implement image upload functionality
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Image upload coming soon!'),
+                      child: _isLoading
+                          ? const CircularProgressIndicator()
+                          : Column(
+                              children: [
+                                // Profile Picture
+                                const Text(
+                                  'Profile Picture',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              );
-                            },
-                            child: const Text('Change Profile Picture'),
-                          ),
-                        ],
-                      ),
+                                const SizedBox(height: 8),
+                                ProfilePictureWidget(
+                                  userId: _supabaseService.currentUser?.id ?? '',
+                                  currentAvatarUrl: _currentAvatarUrl,
+                                  size: 100,
+                                  showEditButton: true,
+                                  showDeleteButton: true,
+                                  onAvatarChanged: _onAvatarChanged,
+                                  onAvatarDeleted: _onAvatarDeleted,
+                                ),
+                                const SizedBox(height: 32),
+                                // Company Logo
+                                const Text(
+                                  'Company Logo',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                CompanyLogoWidget(
+                                  userId: _supabaseService.currentUser?.id ?? '',
+                                  currentLogoUrl: _currentLogoUrl,
+                                  size: 100,
+                                  showEditButton: true,
+                                  showDeleteButton: true,
+                                  onLogoChanged: _onLogoChanged,
+                                  onLogoDeleted: _onLogoDeleted,
+                                ),
+                              ],
+                            ),
                     ),
                     
                     const SizedBox(height: 32),

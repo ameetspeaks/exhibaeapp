@@ -58,12 +58,12 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             ),
             child: Row(
               children: [
-                const Text(
-                  'Filters',
+                Text(
+                  'Filter Exhibitions',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.textDarkCharcoal,
+                    color: Colors.black,
                   ),
                 ),
                 const Spacer(),
@@ -93,7 +93,14 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Date Range
-                  _buildSectionTitle('Date Range'),
+                  Text(
+                    'Date Range',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
@@ -124,7 +131,14 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   const SizedBox(height: 24),
                   
                   // Categories
-                  _buildSectionTitle('Categories'),
+                  Text(
+                    'Categories',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
@@ -155,7 +169,14 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   const SizedBox(height: 24),
                   
                   // Distance
-                  _buildSectionTitle('Distance (${_distanceRange.end.round()}km)'),
+                  Text(
+                    'Distance (${_distanceRange.end.round()}km)',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   RangeSlider(
                     values: _distanceRange,
@@ -177,7 +198,14 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                   const SizedBox(height: 24),
                   
                   // Price Range
-                  _buildSectionTitle('Price Range (₹${_priceRange.start.round().toStringAsFixed(0)} - ₹${_priceRange.end.round().toStringAsFixed(0)})'),
+                  Text(
+                    'Price Range (₹${_priceRange.start.round().toStringAsFixed(0)} - ₹${_priceRange.end.round().toStringAsFixed(0)})',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   RangeSlider(
                     values: _priceRange,
@@ -266,7 +294,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                     ),
                     child: const Text(
                       'Apply Filters',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),

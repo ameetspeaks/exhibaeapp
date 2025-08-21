@@ -195,8 +195,8 @@ class _BasicInfoStepState extends State<BasicInfoStep> {
                   return DropdownButtonFormField<String>(
                     value: state.formData.venueTypeId,
                     items: _venueTypes.map((type) {
-                      return DropdownMenuItem(
-                        value: type['id'],
+                      return DropdownMenuItem<String>(
+                        value: type['id'] as String,
                         child: Text(
                           type['name'],
                           style: const TextStyle(color: AppTheme.white),
@@ -214,6 +214,8 @@ class _BasicInfoStepState extends State<BasicInfoStep> {
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.all(16),
                     ),
+                    isExpanded: true,
+                    menuMaxHeight: 200,
                   );
                 },
               ),
@@ -311,8 +313,8 @@ class _BasicInfoStepState extends State<BasicInfoStep> {
                         return DropdownButtonFormField<String>(
                           value: state.formData.measurementUnitId,
                           items: _measurementUnits.map((unit) {
-                            return DropdownMenuItem(
-                              value: unit['id'],
+                            return DropdownMenuItem<String>(
+                              value: unit['id'] as String,
                               child: Text(
                                 unit['symbol'],
                                 style: const TextStyle(color: AppTheme.white),
@@ -330,6 +332,8 @@ class _BasicInfoStepState extends State<BasicInfoStep> {
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.all(16),
                           ),
+                          isExpanded: true,
+                          menuMaxHeight: 200,
                         );
                       },
                     ),

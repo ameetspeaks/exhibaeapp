@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/supabase_service.dart';
 
@@ -161,40 +160,53 @@ class _SignupScreenState extends State<SignupScreen> {
                     child: Column(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(20),
+                          width: 120,
+                          height: 120,
                           decoration: BoxDecoration(
-                            color: AppTheme.white.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: AppTheme.white.withOpacity(0.2),
-                              width: 1,
-                            ),
+                            color: AppTheme.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.white.withOpacity(0.3),
+                                blurRadius: 20,
+                                spreadRadius: 5,
+                              ),
+                            ],
                           ),
-                          child: SvgPicture.asset(
-                            'assets/images/logo.svg',
-                            height: 40,
-                            colorFilter: const ColorFilter.mode(
-                              AppTheme.white,
-                              BlendMode.srcIn,
+                          child: Center(
+                            child: Image.asset(
+                              'assets/images/exhibae-icon.png',
+                              height: 100,
+                              width: 100,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                print('Error loading logo: $error');
+                                return const Icon(
+                                  Icons.event,
+                                  color: AppTheme.gradientBlack,
+                                  size: 60,
+                                );
+                              },
                             ),
                           ),
                         ),
                         const SizedBox(height: 20),
-                        const Text(
+                        Text(
                           'Sign Up',
-                          style: TextStyle(
-                            fontSize: 32,
+                          style: const TextStyle(
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.white,
+                            color: Colors.black,
                           ),
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Join Exhibae and start your journey',
+                          'Join Exhibae and start your exhibition journey today',
                           style: TextStyle(
                             fontSize: 16,
-                            color: AppTheme.white.withOpacity(0.8),
+                            color: Colors.black.withOpacity(0.8),
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),
@@ -208,8 +220,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       color: AppTheme.white.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: AppTheme.white.withOpacity(0.2),
-                        width: 1,
+                        color: AppTheme.borderLightGray,
                       ),
                       boxShadow: [
                         BoxShadow(
@@ -226,38 +237,38 @@ class _SignupScreenState extends State<SignupScreen> {
                         TextFormField(
                           controller: _nameController,
                           keyboardType: TextInputType.name,
-                          style: const TextStyle(color: AppTheme.white),
+                          style: TextStyle(color: Colors.black),
                           decoration: InputDecoration(
                             labelText: 'Full Name',
                             labelStyle: TextStyle(
-                              color: AppTheme.white.withOpacity(0.8),
+                              color: Colors.black.withOpacity(0.7),
                               fontSize: 16,
                             ),
                             prefixIcon: Icon(
                               Icons.person,
-                              color: AppTheme.white.withOpacity(0.8),
+                              color: Colors.black.withOpacity(0.7),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: AppTheme.white.withOpacity(0.3),
+                                color: AppTheme.primaryMaroon.withOpacity(0.2),
                               ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: AppTheme.white.withOpacity(0.3),
+                                color: AppTheme.primaryMaroon.withOpacity(0.2),
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: AppTheme.white,
+                              borderSide: BorderSide(
+                                color: AppTheme.primaryMaroon,
                                 width: 2,
                               ),
                             ),
                             filled: true,
-                            fillColor: AppTheme.white.withOpacity(0.1),
+                            fillColor: AppTheme.white,
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -272,38 +283,38 @@ class _SignupScreenState extends State<SignupScreen> {
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
-                          style: const TextStyle(color: AppTheme.white),
+                          style: TextStyle(color: Colors.black),
                           decoration: InputDecoration(
                             labelText: 'Email Address',
                             labelStyle: TextStyle(
-                              color: AppTheme.white.withOpacity(0.8),
+                              color: Colors.black.withOpacity(0.7),
                               fontSize: 16,
                             ),
                             prefixIcon: Icon(
                               Icons.email,
-                              color: AppTheme.white.withOpacity(0.8),
+                              color: Colors.black.withOpacity(0.7),
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: AppTheme.white.withOpacity(0.3),
+                                color: AppTheme.primaryMaroon.withOpacity(0.2),
                               ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: AppTheme.white.withOpacity(0.3),
+                                color: AppTheme.primaryMaroon.withOpacity(0.2),
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: AppTheme.white,
+                              borderSide: BorderSide(
+                                color: AppTheme.primaryMaroon,
                                 width: 2,
                               ),
                             ),
                             filled: true,
-                            fillColor: AppTheme.white.withOpacity(0.1),
+                            fillColor: AppTheme.white,
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -321,51 +332,67 @@ class _SignupScreenState extends State<SignupScreen> {
                         Text(
                           'Select your role',
                           style: TextStyle(
-                            color: AppTheme.white.withOpacity(0.8),
+                            color: Colors.black,
                             fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 12),
                         Container(
                           decoration: BoxDecoration(
-                            color: AppTheme.white.withOpacity(0.1),
+                            color: AppTheme.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: AppTheme.white.withOpacity(0.3),
+                              color: AppTheme.borderLightGray,
                             ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
                           child: DropdownButtonFormField<String>(
                             value: _selectedRole,
-                            style: const TextStyle(
-                              color: AppTheme.white,
+                            style: TextStyle(
+                              color: Colors.black,
                               fontSize: 16,
+                              fontWeight: FontWeight.w600,
                             ),
-                            dropdownColor: AppTheme.gradientBlack,
+                            dropdownColor: AppTheme.white,
                             icon: Icon(
                               Icons.keyboard_arrow_down,
-                              color: AppTheme.white.withOpacity(0.8),
+                              color: Colors.black.withOpacity(0.7),
                             ),
                             decoration: InputDecoration(
                               border: InputBorder.none,
                               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                               prefixIcon: Icon(
                                 Icons.work,
-                                color: AppTheme.white.withOpacity(0.8),
+                                color: Colors.black.withOpacity(0.7),
+                              ),
+                              hintText: 'Choose your role',
+                              hintStyle: TextStyle(
+                                color: Colors.black.withOpacity(0.5),
+                                fontSize: 16,
                               ),
                             ),
                             items: _roles.map((role) {
+                              final isSelected = _selectedRole == role['value'];
                               return DropdownMenuItem<String>(
                                 value: role['value'],
-                                child: Text(
-                                  role['label']!,
-                                  style: TextStyle(
-                                    color: _selectedRole == role['value'] 
-                                        ? AppTheme.white 
-                                        : AppTheme.white.withOpacity(0.8),
-                                    fontWeight: _selectedRole == role['value'] 
-                                        ? FontWeight.w600 
-                                        : FontWeight.normal,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  child: Text(
+                                    role['label']!,
+                                    style: TextStyle(
+                                      color: isSelected 
+                                          ? Colors.black 
+                                          : Colors.black.withOpacity(0.8),
+                                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                                      fontSize: 16,
+                                    ),
                                   ),
                                 ),
                               );
@@ -377,16 +404,50 @@ class _SignupScreenState extends State<SignupScreen> {
                             },
                             selectedItemBuilder: (context) {
                               return _roles.map((role) {
-                                return Text(
-                                  role['label']!,
-                                  style: const TextStyle(
-                                    color: AppTheme.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
+                                return Container(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    role['label']!,
+                                    style: const TextStyle(
+                                      color: AppTheme.primaryMaroon,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 );
                               }).toList();
                             },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        // Selected Role Indicator
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.gradientBlack.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppTheme.gradientBlack.withOpacity(0.2),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                color: AppTheme.primaryMaroon,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Selected: ${_roles.firstWhere((role) => role['value'] == _selectedRole)['label']}',
+                                style: TextStyle(
+                                  color: AppTheme.primaryMaroon,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 20),
@@ -395,21 +456,21 @@ class _SignupScreenState extends State<SignupScreen> {
                         TextFormField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
-                          style: const TextStyle(color: AppTheme.white),
+                          style: TextStyle(color: Colors.black),
                           decoration: InputDecoration(
                             labelText: 'Password',
                             labelStyle: TextStyle(
-                              color: AppTheme.white.withOpacity(0.8),
+                              color: Colors.black.withOpacity(0.7),
                               fontSize: 16,
                             ),
                             prefixIcon: Icon(
                               Icons.lock,
-                              color: AppTheme.white.withOpacity(0.8),
+                              color: Colors.black.withOpacity(0.7),
                             ),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                                color: AppTheme.white.withOpacity(0.8),
+                                color: Colors.black.withOpacity(0.7),
                               ),
                               onPressed: () {
                                 setState(() {
@@ -420,24 +481,24 @@ class _SignupScreenState extends State<SignupScreen> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: AppTheme.white.withOpacity(0.3),
+                                color: AppTheme.primaryMaroon.withOpacity(0.2),
                               ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: AppTheme.white.withOpacity(0.3),
+                                color: AppTheme.primaryMaroon.withOpacity(0.2),
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: AppTheme.white,
+                              borderSide: BorderSide(
+                                color: AppTheme.primaryMaroon,
                                 width: 2,
                               ),
                             ),
                             filled: true,
-                            fillColor: AppTheme.white.withOpacity(0.1),
+                            fillColor: AppTheme.white,
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -455,21 +516,21 @@ class _SignupScreenState extends State<SignupScreen> {
                         TextFormField(
                           controller: _confirmPasswordController,
                           obscureText: _obscureConfirmPassword,
-                          style: const TextStyle(color: AppTheme.white),
+                          style: TextStyle(color: Colors.black),
                           decoration: InputDecoration(
                             labelText: 'Confirm Password',
                             labelStyle: TextStyle(
-                              color: AppTheme.white.withOpacity(0.8),
+                              color: Colors.black.withOpacity(0.7),
                               fontSize: 16,
                             ),
                             prefixIcon: Icon(
                               Icons.lock_outline,
-                              color: AppTheme.white.withOpacity(0.8),
+                              color: Colors.black.withOpacity(0.7),
                             ),
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
-                                color: AppTheme.white.withOpacity(0.8),
+                                color: Colors.black.withOpacity(0.7),
                               ),
                               onPressed: () {
                                 setState(() {
@@ -480,24 +541,24 @@ class _SignupScreenState extends State<SignupScreen> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: AppTheme.white.withOpacity(0.3),
+                                color: AppTheme.primaryMaroon.withOpacity(0.2),
                               ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: AppTheme.white.withOpacity(0.3),
+                                color: AppTheme.primaryMaroon.withOpacity(0.2),
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
-                                color: AppTheme.white,
+                              borderSide: BorderSide(
+                                color: AppTheme.primaryMaroon,
                                 width: 2,
                               ),
                             ),
                             filled: true,
-                            fillColor: AppTheme.white.withOpacity(0.1),
+                            fillColor: AppTheme.white,
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -529,13 +590,13 @@ class _SignupScreenState extends State<SignupScreen> {
                                   return AppTheme.white.withOpacity(0.3);
                                 },
                               ),
-                              checkColor: AppTheme.gradientBlack,
+                              checkColor: AppTheme.primaryMaroon,
                             ),
                             Expanded(
                               child: Text(
                                 'I accept the terms and conditions',
                                 style: TextStyle(
-                                  color: AppTheme.white.withOpacity(0.8),
+                                  color: Colors.black.withOpacity(0.8),
                                   fontSize: 14,
                                 ),
                               ),
@@ -550,8 +611,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           child: ElevatedButton(
                             onPressed: _isLoading ? null : _handleSignup,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.white,
-                              foregroundColor: AppTheme.gradientBlack,
+                              backgroundColor: AppTheme.primaryMaroon,
+                              foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -564,7 +625,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                     width: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.gradientBlack),
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                     ),
                                   )
                                 : const Text(
@@ -572,6 +633,7 @@ class _SignupScreenState extends State<SignupScreen> {
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
+                                      color: Colors.white,
                                     ),
                                   ),
                           ),
@@ -587,21 +649,22 @@ class _SignupScreenState extends State<SignupScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'Already have an account? ',
+                          'Already have an account?',
                           style: TextStyle(
-                            color: AppTheme.white.withOpacity(0.8),
+                            fontSize: 16,
+                            color: Colors.black.withOpacity(0.8),
                           ),
                         ),
                         TextButton(
                           onPressed: () {
                             Navigator.pushNamed(context, '/login');
                           },
-                          child: const Text(
-                            'Sign In',
-                            style: TextStyle(
-                              color: AppTheme.white,
+                          child: Text(
+                            'Login',
+                            style: const TextStyle(
+                              fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              decoration: TextDecoration.underline,
+                              color: AppTheme.primaryMaroon,
                             ),
                           ),
                         ),

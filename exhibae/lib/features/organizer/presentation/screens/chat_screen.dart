@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/widgets/profile_picture_display.dart';
 
 class ChatScreen extends StatefulWidget {
   final Map<String, dynamic> chat;
@@ -181,21 +182,11 @@ class _ChatScreenState extends State<ChatScreen> {
         elevation: 0,
         title: Row(
           children: [
-            CircleAvatar(
-              radius: 20,
+            ProfilePictureDisplay(
+              avatarUrl: brand['avatar_url'],
+              size: 40,
               backgroundColor: AppTheme.white.withOpacity(0.1),
-              backgroundImage: brand['avatar_url'] != null
-                  ? NetworkImage(brand['avatar_url'])
-                  : null,
-              child: brand['avatar_url'] == null
-                  ? Text(
-                      brand['company_name']?.substring(0, 1).toUpperCase() ?? 'B',
-                      style: TextStyle(
-                        color: AppTheme.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    )
-                  : null,
+              iconColor: AppTheme.white,
             ),
             const SizedBox(width: 12),
             Expanded(

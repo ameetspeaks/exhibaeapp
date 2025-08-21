@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/widgets/profile_picture_display.dart';
 
 class BrandProfileScreen extends StatefulWidget {
   const BrandProfileScreen({super.key});
@@ -13,6 +14,13 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
   bool _isLoading = false;
   Map<String, dynamic> _profile = {};
   final SupabaseService _supabaseService = SupabaseService.instance;
+  
+  // Followers data
+  List<Map<String, dynamic>> _followers = [];
+  int _followersCount = 0;
+  bool _isLoadingFollowers = false;
+  bool _hasMoreFollowers = true;
+  int _currentPage = 0;
 
   @override
   void initState() {
@@ -34,6 +42,8 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
             _profile = profile;
             _isLoading = false;
           });
+          // Load followers after profile is loaded
+          _loadFollowers(currentUser.id);
         } else {
           // Create a default profile if none exists
           await _createDefaultProfile(currentUser.id);
@@ -112,6 +122,70 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
     }
   }
 
+  Future<void> _loadFollowers(String brandId) async {
+    try {
+      setState(() {
+        _isLoadingFollowers = true;
+      });
+
+      // Get followers count
+      final count = await _supabaseService.getBrandFollowersCount(brandId);
+      
+      // Get first page of followers
+      final followersData = await _supabaseService.getBrandFollowers(brandId, page: 0, limit: 10);
+      
+      setState(() {
+        _followersCount = count;
+        // Fix type casting issue by properly converting List<dynamic> to List<Map<String, dynamic>>
+        final followersList = followersData['followers'] as List<dynamic>? ?? [];
+        _followers = followersList.map((follower) => Map<String, dynamic>.from(follower)).toList();
+        _hasMoreFollowers = followersData['has_more'] ?? false;
+        _currentPage = 0;
+        _isLoadingFollowers = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingFollowers = false;
+      });
+      print('Error loading followers: $e');
+    }
+  }
+
+  Future<void> _loadMoreFollowers() async {
+    if (_isLoadingFollowers || !_hasMoreFollowers) return;
+
+    try {
+      setState(() {
+        _isLoadingFollowers = true;
+      });
+
+      final currentUser = _supabaseService.currentUser;
+      if (currentUser == null) return;
+
+      final nextPage = _currentPage + 1;
+      final followersData = await _supabaseService.getBrandFollowers(
+        currentUser.id, 
+        page: nextPage, 
+        limit: 10
+      );
+
+      setState(() {
+        // Fix type casting issue by properly converting List<dynamic> to List<Map<String, dynamic>>
+        final followersList = followersData['followers'] as List<dynamic>? ?? [];
+        final newFollowers = followersList.map((follower) => Map<String, dynamic>.from(follower)).toList();
+        _followers.addAll(newFollowers);
+        _hasMoreFollowers = followersData['has_more'] ?? false;
+        _currentPage = nextPage;
+        _isLoadingFollowers = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingFollowers = false;
+      });
+      print('Error loading more followers: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,33 +198,33 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.white.withOpacity(0.1),
+                color: AppTheme.secondaryWarm.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: AppTheme.white.withOpacity(0.2),
+                  color: AppTheme.borderLightGray,
                   width: 1,
                 ),
               ),
               child: const Icon(
                 Icons.person,
-                color: AppTheme.white,
+                color: Colors.black,
                 size: 24,
               ),
             ),
             const SizedBox(width: 12),
-            const Text(
-              'Profile',
+            Text(
+              'My Profile',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: AppTheme.white,
+                color: Colors.black,
               ),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit, color: AppTheme.white),
+            icon: const Icon(Icons.edit, color: Colors.black),
             onPressed: () async {
               final result = await Navigator.of(context).pushNamed('/edit-profile');
               if (result == true) {
@@ -171,12 +245,14 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
                   _buildProfileHeader(),
                   const SizedBox(height: 24),
 
-                  // Stats Cards
-                  _buildStatsCards(),
-                  const SizedBox(height: 24),
+
 
                   // Profile Information
                   _buildProfileInformation(),
+                  const SizedBox(height: 24),
+
+                  // Followers Section
+                  _buildFollowersSection(),
                   const SizedBox(height: 24),
 
                   // Settings
@@ -234,59 +310,103 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
         color: AppTheme.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
-          width: 1,
+          color: AppTheme.borderLightGray,
         ),
       ),
       child: Column(
         children: [
-          // Profile Picture
-          Stack(
+          // Profile Picture and Company Logo
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundColor: AppTheme.white.withOpacity(0.1),
-                child: _profile['logo_url'] != null
-                    ? ClipOval(
-                        child: Image.network(
-                          _profile['logo_url'],
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const Icon(
-                              Icons.business,
-                              size: 50,
-                              color: AppTheme.white,
-                            );
-                          },
-                        ),
-                      )
-                    : const Icon(
-                        Icons.business,
-                        size: 50,
-                        color: AppTheme.white,
-                      ),
-              ),
-              if (_profile['verified'] == true)
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.verified,
-                      color: AppTheme.white,
-                      size: 20,
+              // Profile Picture
+              Column(
+                children: [
+                  ProfilePictureDisplay(
+                    avatarUrl: _profile['avatar_url'],
+                    size: 80,
+                    backgroundColor: AppTheme.primaryMaroon.withOpacity(0.1),
+                    iconColor: AppTheme.primaryMaroon,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Profile Picture',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
                     ),
                   ),
-                ),
+                ],
+              ),
+              // Company Logo
+              Column(
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: AppTheme.secondaryWarm.withOpacity(0.1),
+                    child: _profile['company_logo_url'] != null
+                        ? ClipOval(
+                            child: Image.network(
+                              _profile['company_logo_url'],
+                              width: 80,
+                              height: 80,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(
+                                  Icons.business,
+                                  size: 40,
+                                  color: Colors.black,
+                                );
+                              },
+                            ),
+                          )
+                        : const Icon(
+                            Icons.business,
+                            size: 40,
+                            color: Colors.black,
+                          ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Company Logo',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
+          // Verified badge
+          if (_profile['verified'] == true)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryMaroon,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.verified,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'Verified',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: 16),
 
           // Company Name
@@ -295,7 +415,7 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: AppTheme.white,
+              color: Colors.black,
             ),
             textAlign: TextAlign.center,
           ),
@@ -306,7 +426,7 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
             _profile['industry'] ?? 'Industry',
             style: const TextStyle(
               fontSize: 16,
-              color: AppTheme.white,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 16),
@@ -326,7 +446,7 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.white,
+                  color: Colors.black,
                 ),
               ),
               const SizedBox(width: 4),
@@ -334,8 +454,31 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
                 '(${_profile['reviews'] ?? 0} reviews)',
                 style: const TextStyle(
                   fontSize: 14,
-                  color: AppTheme.white,
+                  color: Colors.black,
                 ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Instagram-style Stats Cards
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildInstagramStyleStatCard(
+                count: '${_profile['applications_submitted'] ?? 0}',
+                label: 'Applications',
+                icon: Icons.assignment,
+              ),
+              _buildInstagramStyleStatCard(
+                count: '${_profile['applications_approved'] ?? 0}',
+                label: 'Approved',
+                icon: Icons.check_circle,
+              ),
+              _buildInstagramStyleStatCard(
+                count: '$_followersCount',
+                label: 'Followers',
+                icon: Icons.people,
               ),
             ],
           ),
@@ -344,92 +487,7 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
     );
   }
 
-  Widget _buildStatsCards() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            title: 'Applications',
-            value: '${_profile['applications_submitted'] ?? 0}',
-            icon: Icons.assignment,
-            color: AppTheme.primaryBlue,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            title: 'Approved',
-            value: '${_profile['applications_approved'] ?? 0}',
-            icon: Icons.check_circle,
-            color: AppTheme.successGreen,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            title: 'Exhibitions',
-            value: '${_profile['total_exhibitions'] ?? 0}',
-            icon: Icons.event,
-            color: AppTheme.secondaryGold,
-          ),
-        ),
-      ],
-    );
-  }
 
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: AppTheme.white,
-              size: 24,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.white,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: AppTheme.white.withOpacity(0.8),
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildProfileInformation() {
     return Container(
@@ -438,7 +496,7 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
         color: AppTheme.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
+          color: AppTheme.borderLightGray,
           width: 1,
         ),
       ),
@@ -450,7 +508,7 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppTheme.white,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 16),
@@ -509,7 +567,7 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: AppTheme.textDarkCharcoal,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 8),
@@ -517,7 +575,7 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
             _profile['description'] ?? 'No description available',
             style: TextStyle(
               fontSize: 14,
-              color: AppTheme.white.withOpacity(0.9),
+              color: Colors.black.withOpacity(0.9),
               height: 1.5,
             ),
           ),
@@ -542,7 +600,7 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
           ),
           child: Icon(
             icon,
-            color: AppTheme.primaryBlue,
+            color: AppTheme.primaryMaroon,
             size: 20,
           ),
         ),
@@ -553,9 +611,9 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppTheme.textMediumGray,
+                  color: Colors.black.withOpacity(0.7),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -564,7 +622,7 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
                 value,
                 style: const TextStyle(
                   fontSize: 14,
-                  color: AppTheme.textDarkCharcoal,
+                  color: Colors.black,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -575,6 +633,347 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
     );
   }
 
+  Widget _buildFollowersSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.borderLightGray,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'Followers',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryMaroon.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$_followersCount',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryMaroon,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          if (_isLoadingFollowers && _followers.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else if (_followers.isEmpty)
+            _buildEmptyFollowersState()
+          else
+            Column(
+              children: [
+                ..._followers.map((follower) => _buildFollowerItem(follower)),
+                if (_hasMoreFollowers) ...[
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _isLoadingFollowers ? null : _loadMoreFollowers,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryMaroon,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: _isLoadingFollowers
+                          ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Text('Load More Followers'),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyFollowersState() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundPeach.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppTheme.borderLightGray,
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.people_outline,
+            size: 48,
+            color: AppTheme.textMediumGray,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No followers yet',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textMediumGray,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'When shoppers mark your brand as favorite, they will appear here.',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.textMediumGray,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFollowerItem(Map<String, dynamic> follower) {
+    final user = follower['user'] ?? {};
+    final profile = user['profiles'] ?? {};
+    final fullName = profile['full_name'] ?? 'Unknown User';
+    final email = user['email'] ?? 'No email';
+    final avatarUrl = profile['avatar_url'];
+    final role = profile['role'] ?? 'user';
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppTheme.borderLightGray,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Avatar
+          ProfilePictureDisplay(
+            avatarUrl: avatarUrl,
+            size: 48,
+            backgroundColor: AppTheme.primaryMaroon.withOpacity(0.1),
+            iconColor: AppTheme.primaryMaroon,
+          ),
+          const SizedBox(width: 12),
+          
+          // User Info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fullName,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  email,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _getRoleColor(role).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _getRoleColor(role).withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    role.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: _getRoleColor(role),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // Followed Date
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Icon(
+                Icons.favorite,
+                size: 16,
+                color: AppTheme.primaryMaroon,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _formatFollowDate(follower['created_at']),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.black.withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getRoleColor(String role) {
+    switch (role.toLowerCase()) {
+      case 'brand':
+        return AppTheme.primaryMaroon;
+      case 'organizer':
+        return AppTheme.primaryBlue;
+      case 'shopper':
+        return AppTheme.successGreen;
+      default:
+        return AppTheme.textMediumGray;
+    }
+  }
+
+  String _formatFollowDate(dynamic date) {
+    if (date == null) return 'Recently';
+    
+    try {
+      final dateTime = date is String ? DateTime.parse(date) : date as DateTime;
+      final now = DateTime.now();
+      final difference = now.difference(dateTime);
+      
+      if (difference.inDays == 0) {
+        if (difference.inHours == 0) {
+          return '${difference.inMinutes}m ago';
+        }
+        return '${difference.inHours}h ago';
+      } else if (difference.inDays == 1) {
+        return 'Yesterday';
+      } else if (difference.inDays < 7) {
+        return '${difference.inDays}d ago';
+      } else if (difference.inDays < 30) {
+        final weeks = (difference.inDays / 7).floor();
+        return '${weeks}w ago';
+      } else {
+        return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+      }
+    } catch (e) {
+      return 'Recently';
+    }
+  }
+
+  Widget _buildInstagramStyleStatCard({
+    required String count,
+    required String label,
+    required IconData icon,
+  }) {
+    return GestureDetector(
+      onTap: () {
+        // TODO: Navigate to detailed view based on the stat type
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('View $label details'),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppTheme.borderLightGray.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            // Icon
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryMaroon.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: AppTheme.primaryMaroon,
+              ),
+            ),
+            const SizedBox(height: 8),
+            
+            // Count
+            Text(
+              count,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            const SizedBox(height: 4),
+            
+            // Label
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.black.withOpacity(0.7),
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSettings() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -582,7 +981,7 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
         color: AppTheme.white.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
+          color: AppTheme.borderLightGray,
           width: 1,
         ),
       ),
@@ -594,7 +993,7 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppTheme.white,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 16),
@@ -677,13 +1076,13 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
           color: AppTheme.white.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: AppTheme.white.withOpacity(0.2),
+            color: AppTheme.borderLightGray,
             width: 1,
           ),
         ),
         child: Icon(
           icon,
-          color: isDestructive ? AppTheme.errorRed : AppTheme.white,
+          color: isDestructive ? AppTheme.errorRed : Colors.black,
           size: 20,
         ),
       ),
@@ -692,20 +1091,20 @@ class _BrandProfileScreenState extends State<BrandProfileScreen> {
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: isDestructive ? AppTheme.errorRed : AppTheme.white,
+          color: isDestructive ? AppTheme.errorRed : Colors.black,
         ),
       ),
       subtitle: Text(
         subtitle,
         style: TextStyle(
           fontSize: 14,
-          color: AppTheme.white.withOpacity(0.8),
+          color: Colors.black.withOpacity(0.8),
         ),
       ),
       trailing: Icon(
         Icons.arrow_forward_ios,
         size: 16,
-        color: AppTheme.white.withOpacity(0.7),
+        color: Colors.black.withOpacity(0.7),
       ),
       onTap: onTap,
     );

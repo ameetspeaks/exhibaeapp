@@ -1,11 +1,13 @@
-import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:exhibae/core/theme/app_theme.dart';
 import 'package:exhibae/core/utils/responsive_utils.dart';
 import 'package:exhibae/core/widgets/responsive_card.dart';
 import 'package:exhibae/core/services/supabase_service.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
+import 'dart:convert'; // Added for base64 encoding
+import 'dart:io'; // Added for File
 
 class BrandGalleryFormScreen extends StatefulWidget {
   final Map<String, dynamic>? galleryItem;
@@ -25,7 +27,7 @@ class _BrandGalleryFormScreenState extends State<BrandGalleryFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  String? _imageUrl;
+  String? _fileUrl;
   bool _isLoading = false;
   bool _isEditing = false;
 
@@ -36,7 +38,7 @@ class _BrandGalleryFormScreenState extends State<BrandGalleryFormScreen> {
     if (_isEditing) {
       _titleController.text = widget.galleryItem!['title'] ?? '';
       _descriptionController.text = widget.galleryItem!['description'] ?? '';
-      _imageUrl = widget.galleryItem!['image_url'];
+      _fileUrl = widget.galleryItem!['image_url'];
     }
   }
 
@@ -47,60 +49,82 @@ class _BrandGalleryFormScreenState extends State<BrandGalleryFormScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
+  Future<void> _pickFile() async {
     try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1920,
-        maxHeight: 1080,
-        imageQuality: 85,
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
       );
 
-      if (image != null) {
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.first;
+        
         setState(() {
           _isLoading = true;
         });
 
         try {
-          // Upload image to Supabase Storage
-          final fileName = '${DateTime.now().millisecondsSinceEpoch}_${path.basename(image.path)}';
-          final filePath = '${widget.brandId}/gallery/$fileName';
+          // Upload file to Supabase storage
+          final supabaseService = SupabaseService.instance;
+          final currentUser = supabaseService.currentUser;
           
-          String? fileUrl;
-          if (image.path.startsWith('http')) {
-            // Web platform - get bytes
-            final bytes = await image.readAsBytes();
-            final uploadResult = await SupabaseService.instance.uploadFile(
-              bucket: 'gallery',
-              path: filePath,
-              fileBytes: bytes,
-              contentType: 'image/${path.extension(image.path).replaceAll('.', '')}',
-            );
-            fileUrl = uploadResult;
-          } else {
-            // Mobile/Desktop platforms - use file path
-            final uploadResult = await SupabaseService.instance.uploadFile(
-              bucket: 'gallery',
-              path: filePath,
-              filePath: image.path,
-              contentType: 'image/${path.extension(image.path).replaceAll('.', '')}',
-            );
-            fileUrl = uploadResult;
+          if (currentUser == null) {
+            throw Exception('User not authenticated');
           }
 
-          if (fileUrl != null) {
+          // Generate unique filename
+          final timestamp = DateTime.now().millisecondsSinceEpoch;
+          final fileName = '${timestamp}_${file.name}';
+          final bucketName = 'gallery';
+          final filePath = '${currentUser.id}/$fileName';
+          
+          String? uploadedUrl;
+          
+          if (file.bytes != null) {
+            // Web platform - upload from bytes
+            uploadedUrl = await supabaseService.client.storage
+                .from(bucketName)
+                .uploadBinary(
+                  filePath,
+                  file.bytes!,
+                );
+          } else if (file.path != null) {
+            // Mobile/Desktop platforms - upload from file path
+            final fileData = File(file.path!).readAsBytesSync();
+            uploadedUrl = await supabaseService.client.storage
+                .from(bucketName)
+                .uploadBinary(
+                  filePath,
+                  fileData,
+                );
+          }
+
+          if (uploadedUrl != null) {
+            // Get public URL
+            final publicUrl = supabaseService.client.storage
+                .from(bucketName)
+                .getPublicUrl(filePath);
+
             setState(() {
-              _imageUrl = fileUrl;
+              _fileUrl = publicUrl;
             });
+            
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Image uploaded successfully: ${file.name}'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
           } else {
-            throw Exception('Failed to upload image');
+            throw Exception('Failed to upload file to storage');
           }
         } catch (e) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Error uploading image: ${e.toString()}'),
+                content: Text('Error uploading file: ${e.toString()}'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -115,7 +139,7 @@ class _BrandGalleryFormScreenState extends State<BrandGalleryFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error picking image: ${e.toString()}'),
+            content: Text('Error picking file: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -124,80 +148,59 @@ class _BrandGalleryFormScreenState extends State<BrandGalleryFormScreen> {
   }
 
   Future<void> _saveGalleryItem() async {
-    print('Starting to save gallery item...');
-    
     if (!_formKey.currentState!.validate()) {
-      print('Form validation failed');
       return;
     }
     
-    if (_imageUrl == null) {
-      print('No image URL available');
+    if (_fileUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an image')),
+        const SnackBar(content: Text('Please select a file')),
       );
       return;
     }
-
-    print('Image URL: $_imageUrl');
-    print('Brand ID: ${widget.brandId}');
-    print('Title: ${_titleController.text.trim()}');
-    print('Description: ${_descriptionController.text.trim()}');
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // Check storage buckets first
+      // Save gallery item to database
       final supabaseService = SupabaseService.instance;
-      print('Checking storage buckets...');
-      final buckets = await supabaseService.listStorageBuckets();
-      print('Available buckets: $buckets');
       
       final galleryData = {
         'brand_id': widget.brandId,
         'title': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
-        'image_url': _imageUrl,
+        'image_url': _fileUrl,
       };
-
-      print('Gallery data to save: $galleryData');
 
       Map<String, dynamic>? result;
 
       if (_isEditing) {
-        print('Updating existing gallery item...');
         result = await supabaseService.updateBrandGalleryItem(
           widget.galleryItem!['id'],
           galleryData,
         );
       } else {
-        print('Creating new gallery item...');
         result = await supabaseService.createBrandGalleryItem(galleryData);
       }
 
-      print('Database operation result: $result');
-
       if (result != null) {
-        print('Gallery item saved successfully!');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(_isEditing 
-                ? 'Gallery item updated successfully!' 
-                : 'Gallery item created successfully!'
-              ),
-            ),
-          );
+                     ScaffoldMessenger.of(context).showSnackBar(
+             SnackBar(
+               content: Text(_isEditing 
+                 ? 'Gallery file updated successfully!' 
+                 : 'Gallery file created successfully!'
+               ),
+             ),
+           );
           Navigator.pop(context, true);
         }
       } else {
-        print('Database operation returned null');
-        throw Exception('Failed to save gallery item - database returned null');
+                 throw Exception('Failed to save gallery file - database returned null');
       }
     } catch (e) {
-      print('Error saving gallery item: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -220,7 +223,7 @@ class _BrandGalleryFormScreenState extends State<BrandGalleryFormScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLightGray,
       appBar: AppBar(
-        title: Text(_isEditing ? 'Edit Gallery Item' : 'Add Gallery Item'),
+        title: Text(_isEditing ? 'Edit Gallery File' : 'Add File to Gallery'),
         backgroundColor: AppTheme.primaryBlue,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -238,8 +241,8 @@ class _BrandGalleryFormScreenState extends State<BrandGalleryFormScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        _isEditing ? 'Edit Gallery Item' : 'Add New Gallery Item',
+                                             Text(
+                         _isEditing ? 'Edit Gallery File' : 'Add New File to Gallery',
                         style: TextStyle(
                           fontSize: ResponsiveUtils.getFontSize(context, mobile: 24, tablet: 28, desktop: 32),
                           fontWeight: FontWeight.bold,
@@ -277,7 +280,7 @@ class _BrandGalleryFormScreenState extends State<BrandGalleryFormScreen> {
                       ),
                       SizedBox(height: ResponsiveUtils.getSpacing(context, mobile: 16, tablet: 20, desktop: 24)),
                       
-                      // Image Upload Section
+                                             // File Upload Section
                       Container(
                         padding: EdgeInsets.all(ResponsiveUtils.getSpacing(context, mobile: 16, tablet: 20, desktop: 24)),
                         decoration: BoxDecoration(
@@ -294,30 +297,41 @@ class _BrandGalleryFormScreenState extends State<BrandGalleryFormScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(
-                                  Icons.image,
-                                  color: AppTheme.primaryBlue,
-                                  size: ResponsiveUtils.getIconSize(context, mobile: 24, tablet: 28, desktop: 32),
-                                ),
-                                SizedBox(width: ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                                Expanded(
-                                  child: Text(
-                                    'Image Upload',
-                                    style: TextStyle(
-                                      fontSize: ResponsiveUtils.getFontSize(context, mobile: 16, tablet: 18, desktop: 20),
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.textDarkCharcoal,
-                                    ),
-                                  ),
-                                ),
+                                                                 Icon(
+                                   Icons.upload_file,
+                                   color: AppTheme.primaryBlue,
+                                   size: ResponsiveUtils.getIconSize(context, mobile: 24, tablet: 28, desktop: 32),
+                                 ),
+                                 SizedBox(width: ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
+                                 Expanded(
+                                   child: Column(
+                                     crossAxisAlignment: CrossAxisAlignment.start,
+                                     children: [
+                                       Text(
+                                         'File Upload',
+                                         style: TextStyle(
+                                           fontSize: ResponsiveUtils.getFontSize(context, mobile: 16, tablet: 18, desktop: 20),
+                                           fontWeight: FontWeight.bold,
+                                           color: AppTheme.textDarkCharcoal,
+                                         ),
+                                       ),
+                                       Text(
+                                         'Upload any file type (images, videos, documents, etc.)',
+                                         style: TextStyle(
+                                           fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
+                                           color: Colors.grey[600],
+                                         ),
+                                       ),
+                                     ],
+                                   ),
+                                 ),
                               ],
                             ),
                             SizedBox(height: ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20)),
                             
-                            if (_imageUrl != null) ...[
+                            if (_fileUrl != null) ...[
                               Container(
-                                height: ResponsiveUtils.getCardHeight(context) * 0.3,
-                                width: double.infinity,
+                                padding: EdgeInsets.all(ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20)),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(8),
@@ -326,59 +340,45 @@ class _BrandGalleryFormScreenState extends State<BrandGalleryFormScreen> {
                                     width: 1,
                                   ),
                                 ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Stack(
-                                    children: [
-                                      Image.network(
-                                        _imageUrl!,
-                                        width: double.infinity,
-                                        height: double.infinity,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) => Center(
-                                          child: Icon(
-                                            Icons.broken_image,
-                                            size: ResponsiveUtils.getIconSize(context, mobile: 48, tablet: 56, desktop: 64),
-                                            color: AppTheme.textMediumGray,
-                                          ),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.file_present,
+                                      color: AppTheme.primaryBlue,
+                                      size: ResponsiveUtils.getIconSize(context, mobile: 20, tablet: 24, desktop: 28),
+                                    ),
+                                    SizedBox(width: ResponsiveUtils.getIconSize(context, mobile: 8, tablet: 12, desktop: 16)),
+                                    Expanded(
+                                      child: Text(
+                                        _fileUrl!,
+                                        style: TextStyle(
+                                          fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
+                                          color: Colors.black.withOpacity(0.7),
                                         ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      Positioned(
-                                        top: 8,
-                                        right: 8,
-                                        child: Container(
-                                          decoration: BoxDecoration(
-                                            color: Colors.red,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: IconButton(
-                                            onPressed: () {
-                                              setState(() {
-                                                _imageUrl = null;
-                                              });
-                                            },
-                                            icon: Icon(
-                                              Icons.close,
-                                              color: Colors.white,
-                                              size: ResponsiveUtils.getIconSize(context, mobile: 16, tablet: 18, desktop: 20),
-                                            ),
-                                            constraints: BoxConstraints(
-                                              minWidth: ResponsiveUtils.getIconSize(context, mobile: 32, tablet: 36, desktop: 40),
-                                              minHeight: ResponsiveUtils.getIconSize(context, mobile: 32, tablet: 36, desktop: 40),
-                                            ),
-                                            padding: EdgeInsets.zero,
-                                          ),
-                                        ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _fileUrl = null;
+                                        });
+                                      },
+                                      icon: Icon(
+                                        Icons.close,
+                                        color: Colors.red,
+                                        size: ResponsiveUtils.getIconSize(context, mobile: 16, tablet: 18, desktop: 20),
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
                               SizedBox(height: ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20)),
                             ],
                             
                             ElevatedButton.icon(
-                              onPressed: _pickImage,
+                              onPressed: _pickFile,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryBlue,
                                 foregroundColor: Colors.white,
@@ -395,7 +395,7 @@ class _BrandGalleryFormScreenState extends State<BrandGalleryFormScreen> {
                                 size: ResponsiveUtils.getIconSize(context, mobile: 18, tablet: 20, desktop: 22),
                               ),
                               label: Text(
-                                _imageUrl != null ? 'Change Image' : 'Select Image',
+                                _fileUrl != null ? 'Change File' : 'Select Any File',
                                 style: TextStyle(
                                   fontSize: ResponsiveUtils.getFontSize(context, mobile: 14, tablet: 16, desktop: 18),
                                   fontWeight: FontWeight.w600,
@@ -456,7 +456,7 @@ class _BrandGalleryFormScreenState extends State<BrandGalleryFormScreen> {
                                       ),
                                     )
                                   : Text(
-                                      _isEditing ? 'Update Gallery Item' : 'Create Gallery Item',
+                                                                             _isEditing ? 'Update Gallery File' : 'Create Gallery File',
                                       style: TextStyle(
                                         fontSize: ResponsiveUtils.getFontSize(context, mobile: 14, tablet: 16, desktop: 18),
                                         fontWeight: FontWeight.w600,

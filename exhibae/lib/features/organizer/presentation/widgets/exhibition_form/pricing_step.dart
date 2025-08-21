@@ -91,10 +91,10 @@ class _PricingStepState extends State<PricingStep> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.white.withOpacity(0.1),
+              color: AppTheme.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppTheme.white.withOpacity(0.2),
+                color: AppTheme.white.withOpacity(0.3),
                 width: 1,
               ),
             ),
@@ -104,7 +104,7 @@ class _PricingStepState extends State<PricingStep> {
                 Text(
                   'Stall Pricing',
                   style: TextStyle(
-                    color: AppTheme.white,
+                    color: AppTheme.gradientBlack,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -113,7 +113,7 @@ class _PricingStepState extends State<PricingStep> {
                 Text(
                   'Set the starting price for stalls at your exhibition',
                   style: TextStyle(
-                    color: AppTheme.white.withOpacity(0.8),
+                    color: AppTheme.gradientBlack.withOpacity(0.7),
                     fontSize: 14,
                   ),
                 ),
@@ -122,10 +122,10 @@ class _PricingStepState extends State<PricingStep> {
                 // Starting Price Field
                 Container(
                   decoration: BoxDecoration(
-                    color: AppTheme.white.withOpacity(0.1),
+                    color: AppTheme.gradientBlack.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppTheme.white.withOpacity(0.2),
+                      color: AppTheme.gradientBlack.withOpacity(0.2),
                       width: 1,
                     ),
                   ),
@@ -133,7 +133,7 @@ class _PricingStepState extends State<PricingStep> {
                     builder: (context, state, _) {
                       return TextField(
                         controller: _priceController,
-                        style: const TextStyle(color: AppTheme.white),
+                        style: const TextStyle(color: AppTheme.gradientBlack, fontSize: 16),
                         keyboardType: TextInputType.number,
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
@@ -145,13 +145,15 @@ class _PricingStepState extends State<PricingStep> {
                         },
                         decoration: InputDecoration(
                           labelText: 'Starting Price (₹)',
-                          labelStyle: TextStyle(color: AppTheme.white.withOpacity(0.8)),
+                          labelStyle: TextStyle(color: AppTheme.gradientBlack.withOpacity(0.7), fontSize: 14),
                           prefixIcon: Icon(
                             Icons.currency_rupee,
-                            color: AppTheme.white.withOpacity(0.8),
+                            color: AppTheme.gradientBlack.withOpacity(0.7),
                           ),
                           border: InputBorder.none,
                           contentPadding: const EdgeInsets.all(16),
+                          hintText: 'Enter starting price',
+                          hintStyle: TextStyle(color: AppTheme.gradientBlack.withOpacity(0.5), fontSize: 16),
                         ),
                       );
                     },
@@ -179,10 +181,10 @@ class _PricingStepState extends State<PricingStep> {
                 else
                   Container(
                     decoration: BoxDecoration(
-                      color: AppTheme.white.withOpacity(0.1),
+                      color: AppTheme.gradientBlack.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                        color: AppTheme.white.withOpacity(0.2),
+                        color: AppTheme.gradientBlack.withOpacity(0.2),
                         width: 1,
                       ),
                     ),
@@ -195,25 +197,26 @@ class _PricingStepState extends State<PricingStep> {
                               value: unit['id'] as String,
                               child: Text(
                                 '${unit['name'] as String} (${unit['symbol'] as String})',
-                                style: const TextStyle(color: AppTheme.white),
+                                style: const TextStyle(color: AppTheme.gradientBlack, fontSize: 16),
                               ),
                             );
                           }).toList(),
                           onChanged: (value) {
-                            state.updatePricing(measurementUnitId: value);
+                            // Note: measurementUnitId is not part of pricing update
+                            // This should be handled in the stall layout step
                           },
-                          dropdownColor: AppTheme.gradientBlack,
-                          style: const TextStyle(color: AppTheme.white),
+                          dropdownColor: AppTheme.white,
+                          style: const TextStyle(color: AppTheme.gradientBlack, fontSize: 16),
                           decoration: InputDecoration(
                             labelText: 'Measurement Unit',
-                            labelStyle: TextStyle(color: AppTheme.white.withOpacity(0.8)),
-                            prefixIcon: Icon(
-                              Icons.straighten,
-                              color: AppTheme.white.withOpacity(0.8),
-                            ),
+                            labelStyle: TextStyle(color: AppTheme.gradientBlack.withOpacity(0.7), fontSize: 14),
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.all(16),
+                            hintText: 'Select measurement unit',
+                            hintStyle: TextStyle(color: AppTheme.gradientBlack.withOpacity(0.5), fontSize: 16),
                           ),
+                          isExpanded: true,
+                          menuMaxHeight: 200,
                         );
                       },
                     ),
@@ -310,6 +313,122 @@ class _PricingStepState extends State<PricingStep> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFormField({
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    required Function(String) onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.white.withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextFormField(
+        controller: controller,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        onChanged: onChanged,
+        style: TextStyle(
+          color: AppTheme.gradientBlack,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          labelStyle: TextStyle(
+            color: AppTheme.gradientBlack.withOpacity(0.7),
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+          hintStyle: TextStyle(
+            color: AppTheme.gradientBlack.withOpacity(0.5),
+            fontSize: 16,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.all(20),
+          filled: true,
+          fillColor: Colors.transparent,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdownField({
+    required String label,
+    required String hint,
+    required String? value,
+    required List<DropdownMenuItem<String>> items,
+    required Function(String?) onChanged,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.white.withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        items: items,
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          labelStyle: TextStyle(
+            color: AppTheme.gradientBlack.withOpacity(0.7),
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+          hintStyle: TextStyle(
+            color: AppTheme.gradientBlack.withOpacity(0.5),
+            fontSize: 16,
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.all(20),
+          filled: true,
+          fillColor: Colors.transparent,
+        ),
+        style: TextStyle(
+          color: AppTheme.gradientBlack,
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+        dropdownColor: AppTheme.white,
+        icon: Icon(
+          Icons.keyboard_arrow_down,
+          color: AppTheme.gradientBlack.withOpacity(0.7),
+          size: 24,
+        ),
+        isExpanded: true,
+        menuMaxHeight: 300,
+      ),
     );
   }
 }

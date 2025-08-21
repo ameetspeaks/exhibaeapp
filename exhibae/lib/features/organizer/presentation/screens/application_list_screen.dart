@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/widgets/profile_picture_display.dart';
 import '../../../../core/routes/app_router.dart';
 
 class ApplicationListScreen extends StatefulWidget {
-  const ApplicationListScreen({super.key});
+  final String? exhibitionId;
+  final String? exhibitionTitle;
+  
+  const ApplicationListScreen({
+    super.key,
+    this.exhibitionId,
+    this.exhibitionTitle,
+  });
 
   @override
   State<ApplicationListScreen> createState() => _ApplicationListScreenState();
@@ -25,6 +33,10 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
   @override
   void initState() {
     super.initState();
+    // If exhibitionId is provided, set it as the selected exhibition filter
+    if (widget.exhibitionId != null) {
+      _selectedExhibition = widget.exhibitionId!;
+    }
     _loadData();
   }
 
@@ -40,18 +52,18 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
         throw Exception('User not authenticated');
       }
 
-      // Load exhibitions first
-      final exhibitions = await _supabaseService.getExhibitions();
-      final organizerExhibitions = exhibitions.where((exhibition) => 
-        exhibition['organiser']?['id'] == userId
-      ).toList();
+      // Load organizer's exhibitions
+      final organizerExhibitions = await _supabaseService.getOrganizerExhibitions(userId);
 
       // Load applications
       final applications = await _supabaseService.getStallApplications();
+      
       final organizerApplications = applications.where((app) {
         final exhibition = app['exhibition'];
-        return exhibition != null && 
+        final isOrganizerApp = exhibition != null && 
                organizerExhibitions.any((ex) => ex['id'] == exhibition['id']);
+        
+        return isOrganizerApp;
       }).toList();
 
       if (mounted) {
@@ -101,32 +113,71 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: AppTheme.backgroundPeach,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppTheme.backgroundPeach,
         elevation: 0,
-        title: const Text(
-          'Applications',
-          style: TextStyle(
-            color: AppTheme.white,
+        title: Text(
+          widget.exhibitionTitle != null 
+              ? '${widget.exhibitionTitle} - Applications'
+              : 'Applications',
+          style: const TextStyle(
+            color: Colors.black,
             fontSize: 24,
             fontWeight: FontWeight.bold,
           ),
         ),
+        actions: [
+          IconButton(
+            onPressed: _loadData,
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryMaroon.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppTheme.primaryMaroon.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Icon(
+                Icons.refresh,
+                color: AppTheme.primaryMaroon,
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+        ],
       ),
       body: Column(
         children: [
-          Padding(
+          // Search and Filter Section
+          Container(
             padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.white,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
             child: Column(
               children: [
                 // Search Bar
                 Container(
                   decoration: BoxDecoration(
-                    color: AppTheme.white.withOpacity(0.1),
+                    color: AppTheme.backgroundPeach,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppTheme.white.withOpacity(0.2),
+                      color: AppTheme.borderLightGray,
                       width: 1,
                     ),
                   ),
@@ -136,11 +187,11 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                         _searchQuery = value;
                       });
                     },
-                    style: const TextStyle(color: AppTheme.white),
+                    style: const TextStyle(color: Colors.black),
                     decoration: InputDecoration(
                       hintText: 'Search applications...',
-                      hintStyle: TextStyle(color: AppTheme.white.withOpacity(0.6)),
-                      prefixIcon: Icon(Icons.search, color: AppTheme.white.withOpacity(0.6)),
+                      hintStyle: TextStyle(color: Colors.black.withOpacity(0.6)),
+                      prefixIcon: Icon(Icons.search, color: Colors.black.withOpacity(0.6)),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
@@ -148,95 +199,31 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Filter Row
-                Row(
-                  children: [
-                    // Status Filter
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppTheme.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppTheme.white.withOpacity(0.2),
-                            width: 1,
-                          ),
-                        ),
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedFilter,
-                          items: [
-                            DropdownMenuItem(value: 'all', child: Text('All Status')),
-                            DropdownMenuItem(value: 'pending', child: Text('Pending')),
-                            DropdownMenuItem(value: 'approved', child: Text('Approved')),
-                            DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedFilter = value ?? 'all';
-                            });
-                          },
-                          dropdownColor: AppTheme.gradientBlack,
-                          style: const TextStyle(color: AppTheme.white),
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                          ),
-                          isExpanded: true,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    
-                    // Exhibition Filter
-                    Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppTheme.white.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppTheme.white.withOpacity(0.2),
-                            width: 1,
-                          ),
-                        ),
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedExhibition,
-                          items: [
-                            DropdownMenuItem(value: 'all', child: Text('All Exhibitions')),
-                            ..._exhibitions.map((exhibition) => DropdownMenuItem(
-                              value: exhibition['id'],
-                              child: Text(
-                                exhibition['title'] ?? 'Untitled',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            )),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              _selectedExhibition = value ?? 'all';
-                            });
-                          },
-                          dropdownColor: AppTheme.gradientBlack,
-                          style: const TextStyle(color: AppTheme.white),
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                          ),
-                          isExpanded: true,
-                        ),
-                      ),
-                    ),
-                  ],
+                // Filter Chips
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildFilterChip('All', 'all'),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('Pending', 'pending'),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('Approved', 'approved'),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('Rejected', 'rejected'),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
           
+          // Content Section
           Expanded(
             child: _isLoading
                 ? Center(
                     child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.white),
+                      valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryMaroon),
                     ),
                   )
                 : _error != null
@@ -247,7 +234,7 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                             Text(
                               'Error loading applications',
                               style: TextStyle(
-                                color: AppTheme.white,
+                                color: Colors.black,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -256,20 +243,17 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                             Text(
                               _error!,
                               style: TextStyle(
-                                color: AppTheme.white.withOpacity(0.7),
+                                color: Colors.black.withOpacity(0.7),
                                 fontSize: 14,
                               ),
+                              textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 16),
                             ElevatedButton(
                               onPressed: _loadData,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.white.withOpacity(0.2),
-                                foregroundColor: AppTheme.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
+                                backgroundColor: AppTheme.primaryMaroon,
+                                foregroundColor: Colors.white,
                               ),
                               child: const Text('Retry'),
                             ),
@@ -282,55 +266,82 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.all(24),
+                                  padding: const EdgeInsets.all(40),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.white.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(20),
+                                    color: AppTheme.primaryMaroon.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(30),
                                     border: Border.all(
-                                      color: AppTheme.white.withOpacity(0.2),
-                                      width: 1,
+                                      color: AppTheme.primaryMaroon.withOpacity(0.3),
+                                      width: 2,
                                     ),
                                   ),
                                   child: Icon(
                                     Icons.assignment_outlined,
-                                    size: 64,
-                                    color: AppTheme.white.withOpacity(0.6),
+                                    size: 80,
+                                    color: AppTheme.primaryMaroon,
                                   ),
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 30),
                                 Text(
-                                  'No applications found',
+                                  'No Applications Found',
                                   style: TextStyle(
-                                    color: AppTheme.white,
-                                    fontSize: 24,
+                                    fontSize: 32,
                                     fontWeight: FontWeight.bold,
+                                    color: Colors.black,
                                   ),
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: 16),
                                 Text(
-                                  _searchQuery.isNotEmpty
-                                      ? 'Try adjusting your search or filters'
-                                      : 'You have no applications yet',
+                                  'Applications from brands will appear here.',
                                   style: TextStyle(
-                                    color: AppTheme.white.withOpacity(0.8),
-                                    fontSize: 16,
+                                    fontSize: 18,
+                                    color: Colors.black.withOpacity(0.8),
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
                               ],
                             ),
                           )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _filteredApplications.length,
-                            itemBuilder: (context, index) {
-                              final application = _filteredApplications[index];
-                              return _buildApplicationCard(application);
-                            },
+                        : RefreshIndicator(
+                            onRefresh: _loadData,
+                            color: AppTheme.primaryMaroon,
+                            backgroundColor: AppTheme.backgroundPeach,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _filteredApplications.length,
+                              itemBuilder: (context, index) {
+                                final application = _filteredApplications[index];
+                                return _buildApplicationCard(application);
+                              },
+                            ),
                           ),
-                    ),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, String value) {
+    final isSelected = _selectedFilter == value;
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (bool selected) {
+        setState(() {
+          _selectedFilter = selected ? value : 'all';
+        });
+      },
+      backgroundColor: AppTheme.backgroundPeach,
+      selectedColor: AppTheme.primaryMaroon,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.black,
+        fontWeight: FontWeight.bold,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      showCheckmark: false,
     );
   }
 
@@ -342,24 +353,60 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
     
     Color getStatusColor() {
       switch (status) {
-        case 'approved':
+        case 'booked':
           return Colors.green;
+        case 'completed':
+          return Colors.blue;
+        case 'payment_pending':
+          return Colors.orange;
+        case 'payment_review':
+          return Colors.blue;
         case 'rejected':
           return AppTheme.errorRed;
+        case 'cancelled':
+          return Colors.grey;
+        case 'pending':
         default:
-          return AppTheme.white;
+          return AppTheme.primaryMaroon;
+      }
+    }
+
+    String getStatusText() {
+      switch (status) {
+        case 'booked':
+          return 'BOOKED';
+        case 'completed':
+          return 'COMPLETED';
+        case 'payment_pending':
+          return 'PAYMENT PENDING';
+        case 'payment_review':
+          return 'PAYMENT REVIEW';
+        case 'rejected':
+          return 'REJECTED';
+        case 'cancelled':
+          return 'CANCELLED';
+        case 'pending':
+        default:
+          return 'PENDING';
       }
     }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
+        color: AppTheme.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
+          color: AppTheme.borderLightGray,
           width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Material(
         color: Colors.transparent,
@@ -379,16 +426,11 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppTheme.white.withOpacity(0.1),
-                      child: Text(
-                        brand['company_name']?.substring(0, 1).toUpperCase() ?? 'B',
-                        style: TextStyle(
-                          color: AppTheme.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    ProfilePictureDisplay(
+                      avatarUrl: brand['avatar_url'],
+                      size: 40,
+                      backgroundColor: AppTheme.primaryMaroon.withOpacity(0.1),
+                      iconColor: AppTheme.primaryMaroon,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -400,7 +442,7 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.white,
+                              color: Colors.black,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -410,7 +452,7 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                             exhibition['title'] ?? 'Unknown Exhibition',
                             style: TextStyle(
                               fontSize: 14,
-                              color: AppTheme.white.withOpacity(0.8),
+                              color: Colors.black.withOpacity(0.7),
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -427,14 +469,14 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                         color: getStatusColor().withOpacity(0.1),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: getStatusColor().withOpacity(0.2),
+                          color: getStatusColor(),
                           width: 1,
                         ),
                       ),
                       child: Text(
-                        status.toUpperCase(),
+                        getStatusText(),
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 11,
                           color: getStatusColor(),
                           fontWeight: FontWeight.w500,
                         ),
@@ -446,7 +488,7 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.white.withOpacity(0.05),
+                    color: AppTheme.backgroundPeach,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -454,15 +496,15 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                       Icon(
                         Icons.grid_on,
                         size: 16,
-                        color: AppTheme.white.withOpacity(0.8),
+                        color: AppTheme.primaryMaroon.withOpacity(0.7),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Stall ${stall['name'] ?? 'Unknown'} - ${stall['length']}x${stall['width']}${stall['unit']?['symbol'] ?? 'm'}',
+                          'Stall ${stall['name'] ?? 'Unknown'} - ${stall['length'] ?? '0'}x${stall['width'] ?? '0'}${stall['unit']?['symbol'] ?? 'm'}',
                           style: TextStyle(
                             fontSize: 14,
-                            color: AppTheme.white.withOpacity(0.8),
+                            color: Colors.black.withOpacity(0.7),
                           ),
                         ),
                       ),
@@ -471,12 +513,13 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.white,
+                          color: Colors.black,
                         ),
                       ),
                     ],
                   ),
                 ),
+                // Show action buttons only for pending applications
                 if (status == 'pending') ...[
                   const SizedBox(height: 12),
                   Row(
@@ -525,7 +568,7 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                             try {
                               await _supabaseService.updateStallApplication(
                                 application['id'],
-                                status: 'approved',
+                                status: 'payment_pending',
                               );
                               
                               if (mounted) {
@@ -556,11 +599,114 @@ class _ApplicationListScreenState extends State<ApplicationListScreen> {
                     ],
                   ),
                 ],
+                // Show payment review button for payment_review status
+                if (status == 'payment_review') ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => _navigateToPaymentReview(application),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryMaroon,
+                        foregroundColor: AppTheme.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text('Review Payment'),
+                    ),
+                  ),
+                ],
+                // Show additional info for other statuses
+                if (status != 'pending' && status != 'payment_review') ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: getStatusColor().withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: getStatusColor().withOpacity(0.1),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _getStatusIcon(status),
+                          size: 16,
+                          color: getStatusColor(),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _getStatusDescription(status),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: getStatusColor(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'booked':
+        return Icons.check_circle;
+      case 'completed':
+        return Icons.event_available;
+      case 'payment_pending':
+        return Icons.payment;
+      case 'payment_review':
+        return Icons.rate_review;
+      case 'rejected':
+        return Icons.cancel;
+      case 'cancelled':
+        return Icons.cancel_outlined;
+      default:
+        return Icons.info;
+    }
+  }
+
+  String _getStatusDescription(String status) {
+    switch (status) {
+      case 'booked':
+        return 'Application approved and stall booked';
+      case 'completed':
+        return 'Exhibition completed successfully';
+      case 'payment_pending':
+        return 'Waiting for payment confirmation';
+      case 'payment_review':
+        return 'Payment under review';
+      case 'rejected':
+        return 'Application has been rejected';
+      case 'cancelled':
+        return 'Application was cancelled';
+      default:
+        return 'Application is pending review';
+    }
+  }
+
+  void _navigateToPaymentReview(Map<String, dynamic> application) {
+    Navigator.pushNamed(
+      context,
+      AppRouter.paymentReview,
+      arguments: {'application': application},
+    ).then((result) {
+      if (result == true) {
+        _loadData();
+      }
+    });
   }
 }

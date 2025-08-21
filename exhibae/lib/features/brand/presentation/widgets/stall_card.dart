@@ -22,8 +22,8 @@ class StallCard extends StatelessWidget {
         color: AppTheme.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isSelected ? AppTheme.primaryBlue : AppTheme.backgroundLightGray,
-          width: isSelected ? 2 : 1,
+          color: AppTheme.borderLightGray,
+          width: 1,
         ),
         boxShadow: [
           BoxShadow(
@@ -75,7 +75,7 @@ class StallCard extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textDarkCharcoal,
+                      color: Colors.black,
                     ),
                   ),
                 ),
@@ -96,9 +96,9 @@ class StallCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     '${_getAvailableInstanceCount(stall)} of ${_getTotalInstanceCount(stall)} available',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
-                      color: AppTheme.textMediumGray,
+                      color: Colors.black.withOpacity(0.8),
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -107,45 +107,6 @@ class StallCard extends StatelessWidget {
             ),
             
             const SizedBox(height: 8),
-            
-            // Amenities Section (if available) - Limited to 2 amenities
-            if (_getStallAmenities(stall).isNotEmpty) ...[
-              const Text(
-                'Amenities:',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textDarkCharcoal,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 3,
-                runSpacing: 3,
-                children: _getStallAmenities(stall).take(2).map((amenity) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: AppTheme.backgroundLightGray,
-                      borderRadius: BorderRadius.circular(3),
-                      border: Border.all(
-                        color: AppTheme.textMediumGray.withOpacity(0.2),
-                        width: 1,
-                      ),
-                    ),
-                    child: Text(
-                      amenity,
-                      style: const TextStyle(
-                        fontSize: 8,
-                        color: AppTheme.textMediumGray,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 8),
-            ],
             
             const Spacer(),
             
@@ -234,22 +195,5 @@ class StallCard extends StatelessWidget {
     if (instances == null) return 0;
     
     return instances.length;
-  }
-
-  List<String> _getStallAmenities(Map<String, dynamic> stall) {
-    final amenities = stall['amenities'];
-    if (amenities is List) {
-      return amenities.where((item) {
-        if (item is Map<String, dynamic>) {
-          final amenity = item['amenity'];
-          return amenity is Map<String, dynamic> && amenity['name'] != null;
-        }
-        return false;
-      }).map((item) {
-        final amenity = item['amenity'] as Map<String, dynamic>;
-        return amenity['name']?.toString() ?? '';
-      }).where((name) => name.isNotEmpty).toList();
-    }
-    return [];
   }
 }

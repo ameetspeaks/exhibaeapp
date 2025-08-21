@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/routes/app_router.dart';
 import 'dart:math' as math;
 import 'dart:async';
 
@@ -23,6 +24,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
   bool _showGrid = true;
   bool _isLoading = false;
   List<Map<String, dynamic>> _stalls = [];
+  List<Map<String, dynamic>> _applications = [];
   final SupabaseService _supabaseService = SupabaseService.instance;
   
   // Add variables for layout bounds
@@ -41,6 +43,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
     _transformationController = TransformationController();
     _transformationController.addListener(_onTransformationChanged);
     _loadStalls();
+    _loadApplications();
     _setupRealTimeUpdates();
   }
 
@@ -49,6 +52,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
     super.didChangeDependencies();
     // Refresh stalls when returning from other screens (e.g., application form)
     _loadStalls();
+    _loadApplications();
   }
 
   @override
@@ -85,6 +89,20 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
     setState(() {
       _zoomLevel = 1.0;
     });
+  }
+
+  Future<void> _loadApplications() async {
+    try {
+      final userId = _supabaseService.client.auth.currentUser?.id;
+      if (userId != null) {
+        final applications = await _supabaseService.getStallApplications(brandId: userId);
+        setState(() {
+          _applications = applications;
+        });
+      }
+    } catch (e) {
+      print('Error loading applications: $e');
+    }
   }
 
   Future<void> _loadStalls() async {
@@ -149,6 +167,21 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
     }
   }
 
+  // Helper method to get application for a specific stall
+  Map<String, dynamic> _getApplicationForStall(String stallId) {
+    print('DEBUG: Looking for application with stallId: $stallId');
+    print('DEBUG: Available applications: ${_applications.map((app) => {
+      'stall_id': app['stall_id'],
+      'stall_instance_id': app['stall_instance_id'],
+      'status': app['status']
+    }).toList()}');
+    
+    return _applications.firstWhere(
+      (app) => app['stall_id'] == stallId || app['stall_instance_id'] == stallId,
+      orElse: () => <String, dynamic>{},
+    );
+  }
+
   // Helper method to get status color
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
@@ -159,7 +192,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
       case 'payment_pending':
         return AppTheme.secondaryGold;
       case 'payment_review':
-        return AppTheme.primaryBlue;
+        return AppTheme.primaryMaroon;
       case 'booked':
       case 'occupied':
         return AppTheme.errorRed;
@@ -491,21 +524,21 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
     final isSmallScreen = screenSize.width < 600;
     
     return Scaffold(
-      backgroundColor: AppTheme.backgroundLightGray,
+      backgroundColor: AppTheme.backgroundPeach,
       appBar: AppBar(
-        backgroundColor: AppTheme.white,
+        backgroundColor: AppTheme.backgroundPeach,
         elevation: 0,
         title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.primaryBlue.withOpacity(0.1),
+                color: AppTheme.primaryMaroon.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
                 Icons.grid_on,
-                color: AppTheme.primaryBlue,
+                color: AppTheme.primaryMaroon,
                 size: 20,
               ),
             ),
@@ -519,7 +552,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
                     style: TextStyle(
                       fontSize: isSmallScreen ? 14 : 16,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textDarkCharcoal,
+                      color: Colors.black,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -527,7 +560,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
                     'Step 1 of 3: Choose Stall',
                     style: TextStyle(
                       fontSize: isSmallScreen ? 10 : 12,
-                      color: AppTheme.textMediumGray,
+                      color: Colors.black.withOpacity(0.7),
                     ),
                   ),
                 ],
@@ -539,7 +572,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
           IconButton(
             icon: Icon(
               _showGrid ? Icons.grid_off : Icons.grid_on,
-              color: AppTheme.primaryBlue,
+              color: AppTheme.primaryMaroon,
             ),
             onPressed: () {
               setState(() {
@@ -554,7 +587,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
           // Filter section
           Container(
             padding: EdgeInsets.all(isSmallScreen ? 8 : 16),
-            color: AppTheme.white,
+            color: AppTheme.backgroundPeach,
             child: Column(
               children: [
                 // Top Row - Zoom Controls and Grid Toggle
@@ -627,8 +660,8 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
                             style: TextStyle(fontSize: 12),
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryBlue,
-                            foregroundColor: AppTheme.white,
+                            backgroundColor: AppTheme.primaryMaroon,
+                            foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                             ),
@@ -667,7 +700,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
                       child: IconButton(
                         icon: Icon(
                           _showGrid ? Icons.grid_off : Icons.grid_on,
-                          color: AppTheme.primaryBlue,
+                          color: AppTheme.primaryMaroon,
                           size: isSmallScreen ? 16 : 20,
                         ),
                         onPressed: () {
@@ -716,8 +749,8 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                              ),
                              style: ElevatedButton.styleFrom(
-                               backgroundColor: AppTheme.primaryBlue,
-                               foregroundColor: AppTheme.white,
+                               backgroundColor: AppTheme.primaryMaroon,
+                               foregroundColor: Colors.white,
                                shape: RoundedRectangleBorder(
                                  borderRadius: BorderRadius.circular(8),
                                ),
@@ -750,7 +783,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
                               '3-Column Grid Layout • ${_stalls.length} Stalls',
                               style: TextStyle(
                                 fontSize: 9,
-                                color: AppTheme.primaryBlue,
+                                color: AppTheme.primaryMaroon,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -792,7 +825,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
                      Container(
                        padding: const EdgeInsets.all(20),
                        decoration: BoxDecoration(
-                         color: AppTheme.primaryBlue.withOpacity(0.05),
+                         color: AppTheme.primaryMaroon.withOpacity(0.05),
                          borderRadius: const BorderRadius.only(
                            topLeft: Radius.circular(16),
                            topRight: Radius.circular(16),
@@ -803,12 +836,12 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
                            Container(
                              padding: const EdgeInsets.all(8),
                              decoration: BoxDecoration(
-                               color: AppTheme.primaryBlue.withOpacity(0.1),
+                               color: AppTheme.primaryMaroon.withOpacity(0.1),
                                borderRadius: BorderRadius.circular(8),
                              ),
                              child: Icon(
                                Icons.map,
-                               color: AppTheme.primaryBlue,
+                               color: AppTheme.primaryMaroon,
                                size: 24,
                              ),
                            ),
@@ -972,7 +1005,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
      // Determine stall color based on status (matching web interface)
      Color stallColor;
      if (isSelected) {
-       stallColor = AppTheme.primaryBlue;
+       stallColor = AppTheme.primaryMaroon;
      } else {
        stallColor = _getStatusColor(status).withOpacity(0.3);
      }
@@ -1003,7 +1036,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
            decoration: BoxDecoration(
              color: stallColor,
              border: Border.all(
-               color: isSelected ? AppTheme.primaryBlue : AppTheme.textMediumGray.withOpacity(0.3),
+               color: isSelected ? AppTheme.primaryMaroon : AppTheme.textMediumGray.withOpacity(0.3),
                width: isSelected ? 3 : 1,
              ),
              borderRadius: BorderRadius.circular(isSmallScreen ? 12 : 4),
@@ -1019,7 +1052,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
                child: Text(
                  '${stall['instance_number']}',
                  style: TextStyle(
-                   color: isSelected ? AppTheme.white : AppTheme.textDarkCharcoal,
+                   color: isSelected ? Colors.white : AppTheme.textDarkCharcoal,
                    fontWeight: FontWeight.bold,
                    fontSize: isSmallScreen ? 18 : 10,
                  ),
@@ -1048,7 +1081,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _buildLegendItem('Payment Pending', AppTheme.secondaryGold, isSmallScreen),
-              _buildLegendItem('Payment Review', AppTheme.primaryBlue, isSmallScreen),
+              _buildLegendItem('Payment Review', AppTheme.primaryMaroon, isSmallScreen),
             ],
           ),
           SizedBox(height: isSmallScreen ? 4 : 8),
@@ -1064,7 +1097,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _buildLegendItem('Under Maintenance', AppTheme.textMediumGray, isSmallScreen),
-              _buildLegendItem('Selected', AppTheme.primaryBlue, isSmallScreen),
+              _buildLegendItem('Selected', AppTheme.primaryMaroon, isSmallScreen),
             ],
           ),
         ],
@@ -1080,7 +1113,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
           const SizedBox(width: 16),
           _buildLegendItem('Payment Pending', AppTheme.secondaryGold, isSmallScreen),
           const SizedBox(width: 16),
-          _buildLegendItem('Payment Review', AppTheme.primaryBlue, isSmallScreen),
+          _buildLegendItem('Payment Review', AppTheme.primaryMaroon, isSmallScreen),
           const SizedBox(width: 16),
           _buildLegendItem('Booked', AppTheme.errorRed, isSmallScreen),
           const SizedBox(width: 16),
@@ -1088,7 +1121,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
           const SizedBox(width: 16),
           _buildLegendItem('Under Maintenance', AppTheme.textMediumGray, isSmallScreen),
           const SizedBox(width: 16),
-          _buildLegendItem('Selected', AppTheme.primaryBlue, isSmallScreen),
+          _buildLegendItem('Selected', AppTheme.primaryMaroon, isSmallScreen),
         ],
       );
     }
@@ -1163,13 +1196,13 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
                   vertical: isSmallScreen ? 4 : 6,
                 ),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryBlue.withOpacity(0.1),
+                  color: AppTheme.primaryMaroon.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   'Stall ${_selectedStall!['instance_number']}',
                   style: TextStyle(
-                    color: AppTheme.primaryBlue,
+                    color: AppTheme.primaryMaroon,
                     fontWeight: FontWeight.bold,
                     fontSize: isSmallScreen ? 12 : 14,
                   ),
@@ -1297,33 +1330,8 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
                     const SizedBox(height: 16),
                   ],
                   
-                  // Apply Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: isSmallScreen ? 48 : 52,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context, {
-                          'selectedStall': _selectedStall,
-                          'action': 'apply',
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryBlue,
-                        foregroundColor: AppTheme.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        'Apply for This Stall',
-                        style: TextStyle(
-                          fontSize: isSmallScreen ? 14 : 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
+                  // Action Buttons based on application status
+                  _buildActionButtons(isSmallScreen),
                 ],
               ),
             ),
@@ -1331,6 +1339,183 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildActionButtons(bool isSmallScreen) {
+    // Use instance_id for individual stall instances, fallback to id for stalls without instances
+    final stallId = _selectedStall!['instance_id'] ?? _selectedStall!['id'];
+    final application = _getApplicationForStall(stallId);
+    final status = application['status']?.toString() ?? '';
+    
+    // Debug: Print application info
+    print('DEBUG: Stall ID: $stallId');
+    print('DEBUG: Application found: ${application.isNotEmpty}');
+    print('DEBUG: Application status: $status');
+    print('DEBUG: Total applications loaded: ${_applications.length}');
+    
+    print('DEBUG: Status comparison - status: "$status", lowercase: "${status.toLowerCase()}"');
+    print('DEBUG: Checking if status matches "payment_pending"');
+    
+    switch (status.toLowerCase()) {
+      case 'payment_pending':
+        print('DEBUG: ✅ Status matches payment_pending, returning Make Payment button');
+        return SizedBox(
+          width: double.infinity,
+          height: isSmallScreen ? 48 : 52,
+          child: ElevatedButton(
+            onPressed: () => _navigateToPaymentSubmission(application),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryMaroon,
+              foregroundColor: AppTheme.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Make Payment',
+              style: TextStyle(
+                fontSize: isSmallScreen ? 14 : 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        );
+        
+      case 'pending':
+        print('DEBUG: ✅ Status matches pending, returning Application Pending button');
+        return SizedBox(
+          width: double.infinity,
+          height: isSmallScreen ? 48 : 52,
+          child: OutlinedButton(
+            onPressed: null,
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: AppTheme.warningOrange),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Application Pending',
+              style: TextStyle(
+                fontSize: isSmallScreen ? 14 : 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.warningOrange,
+              ),
+            ),
+          ),
+        );
+        
+      case 'payment_review':
+        return SizedBox(
+          width: double.infinity,
+          height: isSmallScreen ? 48 : 52,
+          child: OutlinedButton(
+            onPressed: null,
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: AppTheme.primaryMaroon),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Payment Under Review',
+              style: TextStyle(
+                fontSize: isSmallScreen ? 14 : 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primaryMaroon,
+              ),
+            ),
+          ),
+        );
+        
+      case 'booked':
+        return SizedBox(
+          width: double.infinity,
+          height: isSmallScreen ? 48 : 52,
+          child: OutlinedButton(
+            onPressed: null,
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: AppTheme.successGreen),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Stall Booked',
+              style: TextStyle(
+                fontSize: isSmallScreen ? 14 : 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.successGreen,
+              ),
+            ),
+          ),
+        );
+        
+      case 'rejected':
+        return SizedBox(
+          width: double.infinity,
+          height: isSmallScreen ? 48 : 52,
+          child: OutlinedButton(
+            onPressed: null,
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: AppTheme.errorRed),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Application Rejected',
+              style: TextStyle(
+                fontSize: isSmallScreen ? 14 : 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.errorRed,
+              ),
+            ),
+          ),
+        );
+        
+      default:
+        print('DEBUG: ❌ No status match found, returning default Apply button');
+        // No application exists or stall is available
+        return SizedBox(
+          width: double.infinity,
+          height: isSmallScreen ? 48 : 52,
+          child: ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context, {
+                'selectedStall': _selectedStall,
+                'action': 'apply',
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryBlue,
+              foregroundColor: AppTheme.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              'Apply for This Stall',
+              style: TextStyle(
+                fontSize: isSmallScreen ? 14 : 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        );
+    }
+  }
+
+  void _navigateToPaymentSubmission(Map<String, dynamic> application) {
+    Navigator.pushNamed(
+      context,
+      AppRouter.paymentSubmission,
+      arguments: {'application': application},
+    ).then((result) {
+      if (result == true) {
+        _loadApplications(); // Reload applications after payment submission
+      }
+    });
   }
 
   Widget _buildDetailItem(String label, String value, bool isSmallScreen, {bool isPrice = false}) {
@@ -1341,7 +1526,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
           label,
           style: TextStyle(
             fontSize: isSmallScreen ? 10 : 12,
-            color: AppTheme.textMediumGray,
+            color: Colors.black.withOpacity(0.7),
           ),
         ),
         const SizedBox(height: 4),
@@ -1350,7 +1535,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
           style: TextStyle(
             fontSize: isSmallScreen ? 14 : 16,
             fontWeight: FontWeight.bold,
-            color: isPrice ? AppTheme.primaryBlue : AppTheme.textDarkCharcoal,
+            color: isPrice ? AppTheme.primaryMaroon : Colors.black,
           ),
         ),
       ],
@@ -1365,7 +1550,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
       children: [
         Icon(
           icon,
-          color: AppTheme.primaryBlue,
+          color: AppTheme.primaryMaroon,
           size: isSmallScreen ? 16 : 18,
         ),
         const SizedBox(width: 8),
@@ -1375,7 +1560,7 @@ class _StallSelectionScreenState extends State<StallSelectionScreen> {
             style: TextStyle(
               fontSize: isSmallScreen ? 12 : 14,
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-              color: AppTheme.textDarkCharcoal,
+              color: Colors.black,
               decoration: isStrikethrough ? TextDecoration.lineThrough : null,
             ),
           ),

@@ -13,7 +13,6 @@ class BasicInfoStep extends StatefulWidget {
 
 class _BasicInfoStepState extends State<BasicInfoStep> {
   final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
 
   @override
@@ -25,7 +24,6 @@ class _BasicInfoStepState extends State<BasicInfoStep> {
   @override
   void dispose() {
     _nameController.dispose();
-    _descriptionController.dispose();
     _priceController.dispose();
     super.dispose();
   }
@@ -33,7 +31,6 @@ class _BasicInfoStepState extends State<BasicInfoStep> {
   void _loadFormData() {
     final formState = context.read<StallFormState>();
     _nameController.text = formState.formData.name;
-    _descriptionController.text = formState.formData.description;
     _priceController.text = formState.formData.price > 0
         ? formState.formData.price.toString()
         : '';
@@ -92,34 +89,7 @@ class _BasicInfoStepState extends State<BasicInfoStep> {
           ),
           const SizedBox(height: 16),
           
-          // Description Field
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppTheme.white.withOpacity(0.2),
-                width: 1,
-              ),
-            ),
-            child: TextField(
-              controller: _descriptionController,
-              style: const TextStyle(color: AppTheme.white),
-              maxLines: 5,
-              onChanged: (value) {
-                context.read<StallFormState>().updateBasicInfo(
-                  description: value,
-                );
-              },
-              decoration: InputDecoration(
-                labelText: 'Description',
-                labelStyle: TextStyle(color: AppTheme.white.withOpacity(0.8)),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.all(16),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
+
           
           // Price Field
           Container(

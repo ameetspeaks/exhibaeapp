@@ -60,11 +60,9 @@ class StallFormState extends ChangeNotifier {
 
   void updateBasicInfo({
     String? name,
-    String? description,
     double? price,
   }) {
     if (name != null) _formData.name = name;
-    if (description != null) _formData.description = description;
     if (price != null) _formData.price = price;
     notifyListeners();
   }

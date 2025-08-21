@@ -35,7 +35,7 @@ class _ReviewStepState extends State<ReviewStep> {
         final venueTypeResponse = await _supabaseService.client
             .from('venue_types')
             .select()
-            .eq('id', formData.venueTypeId)
+            .eq('id', formData.venueTypeId!)
             .single();
         _venueTypeData = venueTypeResponse;
       }
@@ -45,7 +45,7 @@ class _ReviewStepState extends State<ReviewStep> {
         final measurementUnitResponse = await _supabaseService.client
             .from('measurement_units')
             .select()
-            .eq('id', formData.measurementUnitId)
+            .eq('id', formData.measurementUnitId!)
             .single();
         _measurementUnitData = measurementUnitResponse;
       }
@@ -55,7 +55,7 @@ class _ReviewStepState extends State<ReviewStep> {
         final amenitiesResponse = await _supabaseService.client
             .from('amenities')
             .select()
-            .in_('id', formData.amenities);
+            .inFilter('id', formData.amenities);
         _selectedAmenities = List<Map<String, dynamic>>.from(amenitiesResponse);
       }
 

@@ -1,14 +1,21 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../../../../core/utils/responsive_utils.dart';
 import '../../../../core/widgets/responsive_card.dart';
 import '../../../../core/widgets/dashboard_loading_widget.dart';
+import '../../../../core/widgets/dashboard_error_widget.dart';
+import '../../../../core/widgets/dashboard_empty_widget.dart';
 import '../../../../core/services/dashboard_service.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../brand/presentation/screens/brand_lookbook_form_screen.dart';
+import '../../../brand/presentation/screens/brand_lookbook_list_screen.dart';
 import '../../../brand/presentation/screens/brand_gallery_form_screen.dart';
+import '../../../brand/presentation/screens/brand_gallery_list_screen.dart';
+import '../../../brand/presentation/widgets/exhibition_card.dart';
+import '../screens/home_screen.dart';
 
 class BrandDashboard extends StatefulWidget {
   const BrandDashboard({super.key});
@@ -46,78 +53,19 @@ class _BrandDashboardState extends State<BrandDashboard> {
         _errorMessage = null;
       });
 
-      print('BrandDashboard: Starting dashboard data load...');
-      
-      // Check Supabase client status
-      print('BrandDashboard: Supabase client status: ${_supabaseService.currentUser != null ? 'Authenticated' : 'Not authenticated'}');
-      
       final currentUser = _supabaseService.currentUser;
-      print('BrandDashboard: Current user: ${currentUser?.id ?? 'null'}');
       
       if (currentUser == null) {
         throw Exception('User not authenticated');
       }
 
-      print('BrandDashboard: Loading dashboard data for user: ${currentUser.id}');
-      
-      // Test individual service calls to identify the failing one
-      try {
-        print('BrandDashboard: Testing getUserProfile...');
-        final profile = await _supabaseService.getUserProfile(currentUser.id);
-        print('BrandDashboard: getUserProfile success: ${profile != null ? 'Profile loaded' : 'Profile is null'}');
-      } catch (e) {
-        print('BrandDashboard: getUserProfile failed: $e');
-        throw Exception('Failed to load user profile: $e');
-      }
-      
-      try {
-        print('BrandDashboard: Testing getHeroSliders...');
-        final heroSliders = await _supabaseService.getHeroSliders();
-        print('BrandDashboard: getHeroSliders success: ${heroSliders.length} items');
-      } catch (e) {
-        print('BrandDashboard: getHeroSliders failed: $e');
-        // Don't throw here, continue with other data
-      }
-      
-      try {
-        print('BrandDashboard: Testing getStallApplications...');
-        final applications = await _supabaseService.getStallApplications(brandId: currentUser.id);
-        print('BrandDashboard: getStallApplications success: ${applications.length} items');
-      } catch (e) {
-        print('BrandDashboard: getStallApplications failed: $e');
-        // Don't throw here, continue with other data
-      }
-      
-      try {
-        print('BrandDashboard: Testing getExhibitions...');
-        final exhibitions = await _supabaseService.getExhibitions();
-        print('BrandDashboard: getExhibitions success: ${exhibitions.length} items');
-      } catch (e) {
-        print('BrandDashboard: getExhibitions failed: $e');
-        // Don't throw here, continue with other data
-      }
-      
-      try {
-        print('BrandDashboard: Testing getExhibitionFavorites...');
-        final favorites = await _supabaseService.getExhibitionFavorites(currentUser.id);
-        print('BrandDashboard: getExhibitionFavorites success: ${favorites.length} items');
-      } catch (e) {
-        print('BrandDashboard: getExhibitionFavorites failed: $e');
-        // Don't throw here, continue with other data
-      }
-      
-      print('BrandDashboard: All individual service calls completed, now calling getBrandDashboardData...');
       final data = await _dashboardService.getBrandDashboardData(currentUser.id);
-      print('BrandDashboard: Dashboard data loaded successfully');
       
       setState(() {
         _dashboardData = data;
         _isLoading = false;
       });
     } catch (e, stackTrace) {
-      print('BrandDashboard: Error loading dashboard data: $e');
-      print('BrandDashboard: Stack trace: $stackTrace');
-      
       String errorMessage = 'Failed to load dashboard data';
       if (e.toString().contains('User not authenticated')) {
         errorMessage = 'Please log in to view your dashboard';
@@ -153,8 +101,6 @@ class _BrandDashboardState extends State<BrandDashboard> {
     }
   }
 
-
-
   void _navigateToExhibitionDetails(String exhibitionId) {
     // Find the exhibition data from the dashboard data
     final recommendedExhibitions = _dashboardData!['recommendedExhibitions'] as List<dynamic>? ?? [];
@@ -177,16 +123,19 @@ class _BrandDashboardState extends State<BrandDashboard> {
   }
 
   void _navigateToAllExhibitions() {
-    // TODO: Navigate to all exhibitions
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('All exhibitions coming soon!')),
+    // Navigate to home screen with explore tab (index 1)
+    Navigator.pushNamedAndRemoveUntil(
+      context, 
+      '/home', 
+      (route) => false,
+      arguments: {'initialTab': 1},
     );
   }
 
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const DashboardLoadingWidget(message: 'Loading your dashboard...');
+      return const DashboardLoadingWidget();
     }
 
     if (_errorMessage != null) {
@@ -213,96 +162,228 @@ class _BrandDashboardState extends State<BrandDashboard> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.white.withOpacity(0.1),
+                color: AppTheme.primaryMaroon.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: AppTheme.white.withOpacity(0.2),
+                  color: AppTheme.borderLightGray,
                   width: 1,
                 ),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.dashboard,
-                color: AppTheme.white,
+                color: AppTheme.primaryMaroon,
                 size: 24,
               ),
             ),
             const SizedBox(width: 12),
-            const Text(
-          'Dashboard',
-          style: TextStyle(
+            Text(
+              'Dashboard',
+              style: TextStyle(
                 fontSize: 24,
-            fontWeight: FontWeight.bold,
-                color: AppTheme.white,
-          ),
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryMaroon,
+              ),
             ),
           ],
         ),
         actions: [
+          // Favorite exhibitions button
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryMaroon.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.borderLightGray,
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  Icons.favorite,
+                  color: Colors.red,
+                  size: 20,
+                ),
+              ),
+              onPressed: () {
+                Navigator.pushNamed(context, '/favorite-exhibitions');
+              },
+            ),
+          ),
+          // Notifications button
           Container(
             margin: const EdgeInsets.only(right: 16),
             child: IconButton(
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.white.withOpacity(0.1),
+                  color: AppTheme.primaryMaroon.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: AppTheme.white.withOpacity(0.2),
+                    color: AppTheme.borderLightGray,
                     width: 1,
                   ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.notifications_outlined,
-                  color: AppTheme.white,
+                  color: AppTheme.primaryMaroon,
                   size: 20,
                 ),
               ),
-            onPressed: () {
-              // TODO: Navigate to notifications
+              onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Notifications coming soon!')),
                 );
-            },
+              },
             ),
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: _loadDashboardData,
+        color: AppTheme.primaryMaroon,
+        backgroundColor: AppTheme.backgroundPeach,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Welcome section
-            _buildWelcomeSection(context),
-              const SizedBox(height: 24),
-              
-              // Hero Slider
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildWelcomeSection(context),
+              const SizedBox(height: 20),
               _buildHeroSlider(context),
-              const SizedBox(height: 24),
-            
-            // Stats cards
-            _buildStatsCards(context),
-              const SizedBox(height: 24),
-            
-            // Recommended exhibitions
-            _buildRecommendedExhibitions(context),
-              const SizedBox(height: 24),
-              
-              // My Favorites section
-              _buildMyFavorites(context),
-              const SizedBox(height: 24),
-              
-              // Brand Look Book section
+              const SizedBox(height: 20),
+              _buildStatsCards(context),
+              const SizedBox(height: 20),
+              _buildRecommendedExhibitions(context),
+              const SizedBox(height: 20),
+              _buildCityBasedExhibitions(context),
+              const SizedBox(height: 20),
               _buildBrandLookBook(context),
-              const SizedBox(height: 24),
-              
-              // Brand Gallery section
+              const SizedBox(height: 20),
               _buildBrandGallery(context),
+              const SizedBox(height: 20), // Bottom padding
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildWelcomeSection(BuildContext context) {
+    final profile = _dashboardData!['profile'] as Map<String, dynamic>?;
+    final fullName = profile?['full_name'] ?? 'Brand';
+    final companyName = profile?['company_name'] ?? 'Company';
+    
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.backgroundPeach.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppTheme.borderLightGray,
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryMaroon.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryMaroon.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  Icons.business,
+                  color: AppTheme.primaryMaroon,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome back,',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppTheme.primaryMaroon.withOpacity(0.9),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      fullName,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    if (companyName.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        companyName,
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: AppTheme.primaryMaroon.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryMaroon.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppTheme.borderLightGray,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.trending_up,
+                  color: AppTheme.primaryMaroon,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'Welcome to your brand dashboard!',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.primaryMaroon,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -315,7 +396,7 @@ class _BrandDashboardState extends State<BrandDashboard> {
     }
 
     return Container(
-      height: ResponsiveUtils.getCardHeight(context) * 0.8,
+      height: 150,
       child: PageView.builder(
         itemCount: heroSliders.length,
         itemBuilder: (context, index) {
@@ -404,7 +485,8 @@ class _BrandDashboardState extends State<BrandDashboard> {
                         right: ResponsiveUtils.getSpacing(context, mobile: 16, tablet: 20, desktop: 24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                             if (title.isNotEmpty)
                               Text(
                                 title,
@@ -455,173 +537,35 @@ class _BrandDashboardState extends State<BrandDashboard> {
     );
   }
 
-  Widget _buildWelcomeSection(BuildContext context) {
-    final profile = _dashboardData!['profile'] as Map<String, dynamic>?;
-    final fullName = profile?['full_name'] ?? 'Brand';
-    final companyName = profile?['company_name'] ?? 'Company';
-    
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: AppTheme.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-            child: Icon(
-              Icons.business,
-              color: AppTheme.white,
-                  size: 30,
-            ),
-          ),
-              const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                      'Welcome back,',
-                  style: TextStyle(
-                        fontSize: 16,
-                        color: AppTheme.white.withOpacity(0.9),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      fullName,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                    color: AppTheme.white,
-                  ),
-                ),
-                    if (companyName.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                Text(
-                        companyName,
-                  style: TextStyle(
-                          fontSize: 16,
-                          color: AppTheme.white.withOpacity(0.9),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppTheme.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.trending_up,
-                    color: AppTheme.white,
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    'Your exhibitions are performing well!',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppTheme.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildStatsCards(BuildContext context) {
     final stats = _dashboardData!['stats'] as Map<String, dynamic>;
     final activeApplications = stats['activeApplications'] ?? 0;
     final upcomingExhibitions = stats['upcomingExhibitions'] ?? 0;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 600) {
-          // Mobile: Stack vertically
-          return Column(
-            children: [
-              _buildStatCard(
-                title: 'Active Applications',
-                value: activeApplications.toString(),
-                icon: Icons.assignment,
-                color: AppTheme.white,
-                context: context,
-              ),
-              SizedBox(height: ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-              _buildStatCard(
-                title: 'Upcoming Exhibitions',
-                value: upcomingExhibitions.toString(),
-                icon: Icons.event,
-                color: AppTheme.white,
-                context: context,
-              ),
-            ],
-          );
-        } else {
-          // Tablet/Desktop: Side by side
-          return Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  title: 'Active Applications',
-                  value: activeApplications.toString(),
-                  icon: Icons.assignment,
-                  color: AppTheme.white,
-                  context: context,
-                ),
-              ),
-              SizedBox(width: ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-              Expanded(
-                child: _buildStatCard(
-                  title: 'Upcoming Exhibitions',
-                  value: upcomingExhibitions.toString(),
-                  icon: Icons.event,
-                  color: AppTheme.white,
-                  context: context,
-                ),
-              ),
-            ],
-          );
-        }
-      },
+    return Container(
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildStatCard(
+              title: 'Active Applications',
+              value: activeApplications.toString(),
+              icon: Icons.assignment,
+              color: AppTheme.primaryMaroon,
+              context: context,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
+              title: 'Upcoming Exhibitions',
+              value: upcomingExhibitions.toString(),
+              icon: Icons.event,
+              color: AppTheme.primaryBlue,
+              context: context,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -632,750 +576,1142 @@ class _BrandDashboardState extends State<BrandDashboard> {
     required Color color,
     required BuildContext context,
   }) {
-    return ResponsiveCard(
-      padding: EdgeInsets.all(ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(ResponsiveUtils.getSpacing(context, mobile: 6, tablet: 8, desktop: 10)),
-                decoration: BoxDecoration(
-                  color: AppTheme.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(ResponsiveUtils.getSpacing(context, mobile: 6, tablet: 8, desktop: 10)),
-                  border: Border.all(
-                    color: AppTheme.white.withOpacity(0.2),
-                    width: 1,
+    return Container(
+      height: 100,
+      child: ResponsiveCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: color.withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 18,
                   ),
                 ),
-                child: Icon(
-                  icon,
-                  color: AppTheme.white,
-                  size: ResponsiveUtils.getIconSize(context, mobile: 18, tablet: 20, desktop: 22),
+                const Spacer(),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const Spacer(),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: ResponsiveUtils.getFontSize(context, mobile: 20, tablet: 24, desktop: 28),
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.white,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: ResponsiveUtils.getSpacing(context, mobile: 6, tablet: 8, desktop: 10)),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
-              color: AppTheme.white.withOpacity(0.8),
-              fontWeight: FontWeight.w500,
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 6),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppTheme.textMediumGray,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
-
-
-
-
 
   Widget _buildRecommendedExhibitions(BuildContext context) {
     final recommendedExhibitions = _dashboardData!['recommendedExhibitions'] as List<dynamic>? ?? [];
 
-    if (recommendedExhibitions.isEmpty) {
-      return DashboardEmptyWidget(
-        title: 'No Recommended Exhibitions',
-        message: 'We\'ll show you personalized recommendations based on your interests.',
-        icon: Icons.event,
-        onAction: _navigateToAllExhibitions,
-        actionLabel: 'Browse Exhibitions',
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'Recommended Exhibitions',
-          style: TextStyle(
-            fontSize: ResponsiveUtils.getFontSize(context, mobile: 16, tablet: 18, desktop: 20),
-            fontWeight: FontWeight.bold,
-            color: AppTheme.white,
-          ),
-        ),
-            TextButton(
-              onPressed: _navigateToAllExhibitions,
-              child: Text(
-                'View All',
-                style: TextStyle(
-                  color: AppTheme.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth < 600) {
-              // Mobile: Vertical list
-              return Column(
-                children: recommendedExhibitions.map<Widget>((exhibition) => 
-                  Padding(
-                    padding: EdgeInsets.only(bottom: ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                    child: _buildExhibitionCard(exhibition, context, isMobile: true),
-                  ),
-                ).toList(),
-              );
-            } else {
-              // Tablet/Desktop: Horizontal scroll
-              return SizedBox(
-                height: ResponsiveUtils.getCardHeight(context),
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: recommendedExhibitions.length,
-                  itemBuilder: (context, index) {
-                    return _buildExhibitionCard(recommendedExhibitions[index], context, isMobile: false);
-                  },
-                ),
-              );
-            }
-          },
-                  ),
-                ],
-              );
-  }
-
-  Widget _buildMyFavorites(BuildContext context) {
-    final favoriteExhibitions = _dashboardData!['favoriteExhibitions'] as List<dynamic>? ?? [];
-    
-    if (favoriteExhibitions.isEmpty) {
-      return DashboardEmptyWidget(
-        title: 'No Favorite Exhibitions',
-        message: 'You haven\'t added any exhibitions to your favorites yet.',
-        icon: Icons.favorite_border,
-        onAction: () => _navigateToAllExhibitions(),
-        actionLabel: 'Browse Exhibitions',
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'My Favorites',
-              style: TextStyle(
-                fontSize: ResponsiveUtils.getFontSize(context, mobile: 20, tablet: 24, desktop: 28),
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textDarkCharcoal,
-              ),
-            ),
-            TextButton(
-              onPressed: () => _navigateToAllExhibitions(),
-              child: Text(
-                'View All',
-                style: TextStyle(
-                  fontSize: ResponsiveUtils.getFontSize(context, mobile: 14, tablet: 16, desktop: 18),
-                  color: AppTheme.primaryBlue,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: ResponsiveUtils.getCardHeight(context) * 0.6,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: favoriteExhibitions.length,
-            itemBuilder: (context, index) {
-              final favorite = favoriteExhibitions[index];
-              final exhibition = favorite['exhibition'] as Map<String, dynamic>? ?? {};
-              
-              if (exhibition.isEmpty) return const SizedBox.shrink();
-              
-              return Container(
-                width: ResponsiveUtils.getCardWidth(context) * 0.8,
-                margin: EdgeInsets.only(
-                  right: ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20),
-                ),
-                child: ResponsiveCard(
-                  onTap: () => _navigateToExhibitionDetails(exhibition['id']),
-      isInteractive: true,
+    return Container(
       child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-                      // Image section
-          Container(
-                        height: ResponsiveUtils.getCardHeight(context) * 0.4,
-            decoration: BoxDecoration(
-                          color: AppTheme.primaryBlue.withOpacity(0.1),
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                            topRight: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                          ),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                            topRight: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                          ),
-                          child: Builder(
-                            builder: (context) {
-                              final images = exhibition['images'] as List<dynamic>?;
-                              final firstImageUrl = images != null && images.isNotEmpty ? images.first : null;
-                              return firstImageUrl != null
-                                  ? Image.network(
-                                      firstImageUrl,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) => Center(
-            child: Icon(
-                                          Icons.event,
-                                          size: ResponsiveUtils.getIconSize(context, mobile: 28, tablet: 32, desktop: 40),
-                                          color: AppTheme.primaryBlue,
-                                        ),
-                                      ),
-                                    )
-                                  : Center(
-                                      child: Icon(
-                                        Icons.event,
-                                        size: ResponsiveUtils.getIconSize(context, mobile: 28, tablet: 32, desktop: 40),
-                                        color: AppTheme.primaryBlue,
-                                      ),
-                                    );
-                            },
-                          ),
-                        ),
-                      ),
-                      // Content section
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.all(ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20)),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-          Text(
-                                exhibition['title'] ?? 'Untitled Exhibition',
-            style: TextStyle(
-                                  fontSize: ResponsiveUtils.getFontSize(context, mobile: 14, tablet: 16, desktop: 18),
-                                  fontWeight: FontWeight.bold,
-              color: AppTheme.textDarkCharcoal,
-            ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 8),
-                              if (exhibition['start_date'] != null && exhibition['end_date'] != null) ...[
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.calendar_today,
-                                      size: ResponsiveUtils.getIconSize(context, mobile: 14, tablet: 16, desktop: 18),
-                                      color: AppTheme.textMediumGray,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(
-                                        '${exhibition['start_date']} - ${exhibition['end_date']}',
-                                        style: TextStyle(
-                                          fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
-                                          color: AppTheme.textMediumGray,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-          ),
-        ],
-      ),
-                                const SizedBox(height: 4),
-                              ],
-                              if (exhibition['city'] != null || exhibition['state'] != null) ...[
-                                Row(
-      children: [
-                                    Icon(
-                                      Icons.location_on,
-                                      size: ResponsiveUtils.getIconSize(context, mobile: 14, tablet: 16, desktop: 18),
-                                      color: AppTheme.textMediumGray,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Expanded(
-                                      child: Text(
-                                        '${exhibition['city'] ?? ''}${exhibition['city'] != null && exhibition['state'] != null ? ', ' : ''}${exhibition['state'] ?? ''}',
-                                        style: TextStyle(
-                                          fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
-                                          color: AppTheme.textMediumGray,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                              const Spacer(),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-                                  Icon(
-                                    Icons.favorite,
-                                    color: Colors.red,
-                                    size: ResponsiveUtils.getIconSize(context, mobile: 16, tablet: 18, desktop: 20),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () => _navigateToExhibitionDetails(exhibition['id']),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppTheme.primaryBlue,
-                                      foregroundColor: Colors.white,
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20),
-                                        vertical: ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 10, desktop: 12),
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 10, desktop: 12)),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      'View Details',
-              style: TextStyle(
-                                        fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
-                                        fontWeight: FontWeight.w600,
-              ),
-            ),
-            ),
-          ],
-        ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildExhibitionCard(Map<String, dynamic> exhibition, BuildContext context, {required bool isMobile}) {
-    final title = exhibition['title'] ?? 'Untitled Exhibition';
-    final startDate = exhibition['start_date'] != null 
-        ? DateTime.parse(exhibition['start_date']).toString().split(' ')[0]
-        : 'TBD';
-    final endDate = exhibition['end_date'] != null 
-        ? DateTime.parse(exhibition['end_date']).toString().split(' ')[0]
-        : 'TBD';
-    final city = exhibition['city'] ?? 'Location TBD';
-    final state = exhibition['state'] ?? '';
-    final location = state.isNotEmpty ? '$city, $state' : city;
-    
-    // Get the first image from the images array or use null
-    final images = exhibition['images'] as List<dynamic>?;
-    final firstImageUrl = images != null && images.isNotEmpty ? images.first : null;
-    final hasBannerImage = firstImageUrl != null;
-
-    if (isMobile) {
-      // Mobile: Full width card
-      return ResponsiveCard(
-        onTap: () => _navigateToExhibitionDetails(exhibition['id']),
-        isInteractive: true,
-        child: Row(
-          children: [
-            Container(
-              width: ResponsiveUtils.getCardWidth(context) * 0.3,
-              height: ResponsiveUtils.getCardHeight(context) * 0.6,
-              decoration: BoxDecoration(
-                color: AppTheme.primaryBlue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                child: hasBannerImage
-                    ? Image.network(
-                        firstImageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Icon(
-                Icons.event,
-                size: ResponsiveUtils.getIconSize(context, mobile: 24, tablet: 32, desktop: 40),
-                color: AppTheme.primaryBlue,
-                        ),
-                      )
-                    : Icon(
-                        Icons.event,
-                        size: ResponsiveUtils.getIconSize(context, mobile: 24, tablet: 32, desktop: 40),
-                        color: AppTheme.primaryBlue,
-                      ),
-              ),
-            ),
-            SizedBox(width: ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: ResponsiveUtils.getFontSize(context, mobile: 14, tablet: 16, desktop: 18),
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textDarkCharcoal,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: ResponsiveUtils.getSpacing(context, mobile: 2, tablet: 4, desktop: 6)),
-                  Text(
-                    '$startDate - $endDate',
-                    style: TextStyle(
-                      fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
-                      color: AppTheme.textMediumGray,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: ResponsiveUtils.getSpacing(context, mobile: 2, tablet: 4, desktop: 6)),
-                  Text(
-                    location,
-                    style: TextStyle(
-                      fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
-                      color: AppTheme.textMediumGray,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    } else {
-      // Tablet/Desktop: Fixed width card
-      return Container(
-        width: ResponsiveUtils.getCardWidth(context),
-        margin: EdgeInsets.only(right: ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20)),
-        child: ResponsiveCard(
-          onTap: () => _navigateToExhibitionDetails(exhibition['id']),
-          isInteractive: true,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                height: ResponsiveUtils.getCardHeight(context) * 0.45,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryBlue.withOpacity(0.1),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                    topRight: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                  ),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                    topRight: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                  ),
-                  child: hasBannerImage
-                      ? Image.network(
-                          firstImageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Center(
-                  child: Icon(
-                    Icons.event,
-                    size: ResponsiveUtils.getIconSize(context, mobile: 28, tablet: 32, desktop: 40),
-                    color: AppTheme.primaryBlue,
-                            ),
-                          ),
-                        )
-                      : Center(
-                          child: Icon(
-                            Icons.event,
-                            size: ResponsiveUtils.getIconSize(context, mobile: 28, tablet: 32, desktop: 40),
-                            color: AppTheme.primaryBlue,
-                          ),
-                  ),
+              Text(
+                'Recommended Exhibitions',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryMaroon,
                 ),
               ),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.all(ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          title,
-                          style: TextStyle(
-                            fontSize: ResponsiveUtils.getFontSize(context, mobile: 14, tablet: 16, desktop: 18),
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textDarkCharcoal,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      SizedBox(height: ResponsiveUtils.getSpacing(context, mobile: 2, tablet: 4, desktop: 6)),
-                      Text(
-                        '$startDate - $endDate',
-                        style: TextStyle(
-                          fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
-                          color: AppTheme.textMediumGray,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      SizedBox(height: ResponsiveUtils.getSpacing(context, mobile: 2, tablet: 4, desktop: 6)),
-                      Text(
-                        location,
-                        style: TextStyle(
-                          fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
-                          color: AppTheme.textMediumGray,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+              TextButton(
+                onPressed: _navigateToAllExhibitions,
+                child: Text(
+                  'View All',
+                  style: TextStyle(
+                    color: AppTheme.primaryMaroon,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          if (recommendedExhibitions.isEmpty)
+            ResponsiveCard(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.recommend_outlined,
+                    size: 48,
+                    color: AppTheme.primaryMaroon.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No Recommended Exhibitions',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'We\'ll show you personalized exhibition recommendations here.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black.withOpacity(0.5),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _navigateToAllExhibitions,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryMaroon,
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.search),
+                    label: const Text('Browse Exhibitions'),
+                  ),
+                ],
+              ),
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 600) {
+                  // Mobile: Vertical list
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: recommendedExhibitions.take(2).map<Widget>((exhibition) => 
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildExhibitionCard(exhibition, context, isMobile: true),
+                      ),
+                    ).toList(),
+                  );
+                } else {
+                  // Tablet/Desktop: Horizontal scroll
+                  return SizedBox(
+                    height: 180,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: recommendedExhibitions.length,
+                      itemBuilder: (context, index) {
+                        return _buildExhibitionCard(recommendedExhibitions[index], context, isMobile: false);
+                      },
+                    ),
+                  );
+                }
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCityBasedExhibitions(BuildContext context) {
+    final cities = _dashboardData!['cities'] as List<dynamic>? ?? [];
+    final selectedCity = _dashboardData!['selectedCity'] as String? ?? 'Delhi';
+    final exhibitions = _dashboardData!['exhibitionsByCity'] as List<dynamic>? ?? [];
+
+    return Container(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'Exhibitions in $selectedCity',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryMaroon,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () => _onCityChanged(selectedCity),
+                    icon: Icon(
+                      Icons.refresh,
+                      color: AppTheme.primaryMaroon,
+                      size: 20,
+                    ),
+                    tooltip: 'Refresh exhibitions',
+                  ),
+                  const SizedBox(width: 8),
+                  DropdownButton<String>(
+                    value: selectedCity,
+                    icon: Icon(Icons.arrow_drop_down, color: AppTheme.primaryMaroon),
+                    iconSize: 20,
+                    elevation: 16,
+                    style: TextStyle(
+                      color: AppTheme.primaryMaroon,
+                      fontSize: 14,
+                    ),
+                    underline: Container(
+                      height: 2,
+                      color: AppTheme.primaryMaroon,
+                    ),
+                    onChanged: (String? newValue) {
+                      if (newValue != null) {
+                        _onCityChanged(newValue);
+                      }
+                    },
+                    items: cities.map<DropdownMenuItem<String>>((dynamic city) {
+                      return DropdownMenuItem<String>(
+                        value: city.toString(),
+                        child: Text(
+                          city.toString(),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildExhibitionsByCity(context, selectedCity),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _onCityChanged(String newCity) async {
+    try {
+      setState(() {
+        _dashboardData!['selectedCity'] = newCity;
+        _dashboardData!['exhibitionsByCity'] = []; // Clear previous exhibitions
+      });
+
+      // Fetch exhibitions for the new city
+      final exhibitions = await _supabaseService.getExhibitions();
+      final cityExhibitions = exhibitions.where((exhibition) => 
+        exhibition['city']?.toString() == newCity
+      ).toList();
+
+      setState(() {
+        _dashboardData!['exhibitionsByCity'] = cityExhibitions;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Found ${cityExhibitions.length} exhibition${cityExhibitions.length == 1 ? '' : 's'} in $newCity'),
+          backgroundColor: AppTheme.successGreen,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading exhibitions for $newCity: $e'),
+          backgroundColor: AppTheme.errorRed,
         ),
       );
     }
+  }
+
+  Widget _buildExhibitionsByCity(BuildContext context, String city) {
+    final exhibitions = _dashboardData!['exhibitionsByCity'] as List<dynamic>? ?? [];
+
+    if (exhibitions.isEmpty) {
+      return ResponsiveCard(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(
+              Icons.event_outlined,
+              size: 48,
+              color: AppTheme.primaryMaroon.withOpacity(0.5),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No Exhibitions in $city',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'No exhibitions have been scheduled in $city yet. Check back later for new exhibitions.',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.black.withOpacity(0.5),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (exhibitions.isNotEmpty) ...[
+          Text(
+            'Found ${exhibitions.length} exhibition${exhibitions.length == 1 ? '' : 's'} in $city',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textMediumGray,
+            ),
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 600) {
+                // Mobile: Vertical list
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: exhibitions.take(2).map<Widget>((exhibition) => 
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildExhibitionCard(exhibition, context, isMobile: true),
+                    ),
+                  ).toList(),
+                );
+              } else {
+                // Tablet/Desktop: Horizontal scroll
+                return SizedBox(
+                  height: 180,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: exhibitions.length,
+                    itemBuilder: (context, index) {
+                      return _buildExhibitionCard(exhibitions[index], context, isMobile: false);
+                    },
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      ],
+    );
   }
 
   Widget _buildBrandLookBook(BuildContext context) {
     final brandLookbooks = _dashboardData!['brandLookbooks'] as List<dynamic>? ?? [];
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Brand Look Book',
-              style: TextStyle(
-                fontSize: ResponsiveUtils.getFontSize(context, mobile: 20, tablet: 24, desktop: 28),
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textDarkCharcoal,
+    return Container(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'My Look Book',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryMaroon,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final currentUser = _supabaseService.currentUser;
-                if (currentUser != null) {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => BrandLookbookFormScreen(
-                        brandId: currentUser.id,
+              const SizedBox(width: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton(
+                    onPressed: () async {
+                      final currentUser = _supabaseService.currentUser;
+                      if (currentUser != null) {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BrandLookbookFormScreen(
+                              brandId: currentUser.id,
+                            ),
+                          ),
+                        );
+                        if (result == true) {
+                          _loadDashboardData();
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryMaroon,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.all(8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                  );
-                  if (result == true) {
-                    // Refresh dashboard data
-                    _loadDashboardData();
-                  }
-                }
-              },
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(
-                'Add Look Book',
-                style: TextStyle(
-                  fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(
-                  horizontal: ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20),
-                  vertical: ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 10, desktop: 12),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 10, desktop: 12)),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (brandLookbooks.isEmpty)
-          DashboardEmptyWidget(
-            title: 'No Look Books Yet',
-            message: 'Start building your brand portfolio by adding your first look book.',
-            icon: Icons.book_outlined,
-            onAction: () async {
-              final currentUser = _supabaseService.currentUser;
-              if (currentUser != null) {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => BrandLookbookFormScreen(
-                      brandId: currentUser.id,
+                    child: const Icon(Icons.add, size: 16, color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final currentUser = _supabaseService.currentUser;
+                      if (currentUser != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BrandLookbookListScreen(
+                              brandId: currentUser.id,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.visibility, size: 14, color: Colors.black87),
+                    label: const Text('View All', style: TextStyle(color: Colors.black87)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[300],
+                      foregroundColor: Colors.black87,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
-                );
-                if (result == true) {
-                  // Refresh dashboard data
-                  _loadDashboardData();
-                }
-              }
-            },
-            actionLabel: 'Add First Look Book',
-          )
-        else
-          SizedBox(
-            height: ResponsiveUtils.getCardHeight(context) * 0.5,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: brandLookbooks.length,
-              itemBuilder: (context, index) {
-                final lookbook = brandLookbooks[index];
-                
-                return Container(
-                  width: ResponsiveUtils.getCardWidth(context) * 0.7,
-                  margin: EdgeInsets.only(
-                    right: ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (brandLookbooks.isEmpty)
+            ResponsiveCard(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.book_outlined,
+                    size: 48,
+                    color: AppTheme.primaryMaroon.withOpacity(0.5),
                   ),
-                  child: GestureDetector(
-                    onLongPress: () {
-                      _showLookbookContextMenu(context, lookbook);
+                  const SizedBox(height: 12),
+                  Text(
+                    'No Look Books Yet',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Start building your brand portfolio by adding your first look book.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black.withOpacity(0.5),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final currentUser = _supabaseService.currentUser;
+                      if (currentUser != null) {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BrandLookbookFormScreen(
+                              brandId: currentUser.id,
+                            ),
+                          ),
+                        );
+                        if (result == true) {
+                          _loadDashboardData();
+                        }
+                      }
                     },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryMaroon,
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add First Lookbook'),
+                  ),
+                ],
+              ),
+            )
+          else
+            SizedBox(
+              height: 120,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: brandLookbooks.length,
+                itemBuilder: (context, index) {
+                  final lookbook = brandLookbooks[index];
+                  
+                  return Container(
+                    width: 160,
+                    margin: const EdgeInsets.only(right: 12),
                     child: ResponsiveCard(
                       onTap: () {
-                        // TODO: Navigate to lookbook details or open file
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Opening: ${lookbook['title']}')),
-                        );
+                        _showLookbookPreview(context, lookbook);
                       },
                       isInteractive: true,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          // File preview section
                           Container(
-                            height: ResponsiveUtils.getCardHeight(context) * 0.35,
+                            height: 70,
+                            width: double.infinity,
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryBlue.withOpacity(0.1),
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                                topRight: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
+                              color: AppTheme.primaryMaroon.withOpacity(0.1),
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(8),
+                                topRight: Radius.circular(8),
                               ),
                             ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                                topRight: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                              ),
-                              child: Center(
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                                      _getFileTypeIcon(lookbook['file_type']),
-                                      size: ResponsiveUtils.getIconSize(context, mobile: 32, tablet: 40, desktop: 48),
-                                      color: AppTheme.primaryBlue,
+                            child: lookbook['file_url'] != null && _isImageFile(_getFileTypeFromName(lookbook['file_name']))
+                                ? _buildImageWidget(lookbook['file_url'])
+                                : Center(
+                                    child: Icon(
+                                      _getFileTypeIcon(_getFileTypeFromName(lookbook['file_name'])),
+                                      size: 20,
+                                      color: AppTheme.primaryMaroon,
                                     ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      lookbook['file_type']?.toUpperCase() ?? 'FILE',
-                              style: TextStyle(
-                                fontSize: ResponsiveUtils.getFontSize(context, mobile: 10, tablet: 12, desktop: 14),
-                                        color: AppTheme.primaryBlue,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                                  ),
                           ),
-                          // Content section
-                          Expanded(
+                          Flexible(
                             child: Padding(
-                              padding: EdgeInsets.all(ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20)),
+                              padding: const EdgeInsets.all(8),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    lookbook['title'] ?? 'Untitled Look Book',
-                                    style: TextStyle(
-                                      fontSize: ResponsiveUtils.getFontSize(context, mobile: 14, tablet: 16, desktop: 18),
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.textDarkCharcoal,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  if (lookbook['description'] != null) ...[
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      lookbook['description'],
-                                      style: TextStyle(
-                                        fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
-                                color: AppTheme.textMediumGray,
-                              ),
-                                      maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
-                                  const Spacer(),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Added ${_formatDate(lookbook['created_at'])}',
-                                        style: TextStyle(
-                                          fontSize: ResponsiveUtils.getFontSize(context, mobile: 10, tablet: 12, desktop: 14),
-                                          color: AppTheme.textMediumGray,
-                                        ),
+                                  Expanded(
+                                    child: Text(
+                                      lookbook['file_name'] ?? 'Untitled Look Book',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
                                       ),
-                                      IconButton(
-                                        onPressed: () {
-                                          _showLookbookContextMenu(context, lookbook);
-                                        },
-                                        icon: Icon(
-                                          Icons.more_vert,
-                                          size: ResponsiveUtils.getIconSize(context, mobile: 16, tablet: 18, desktop: 20),
-                                          color: AppTheme.textMediumGray,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  Text(
+                                    _formatDate(lookbook['created_at']),
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: AppTheme.textMediumGray,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    ],
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBrandGallery(BuildContext context) {
+    final brandGallery = _dashboardData!['brandGallery'] as List<dynamic>? ?? [];
+    
+    return Container(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'My Gallery',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryMaroon,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ],
+              const SizedBox(width: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ElevatedButton(
+                    onPressed: () async {
+                      final currentUser = _supabaseService.currentUser;
+                      if (currentUser != null) {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BrandGalleryFormScreen(
+                              brandId: currentUser.id,
+                            ),
+                          ),
+                        );
+                        if (result == true) {
+                          _loadDashboardData();
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryMaroon,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.all(8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Icon(Icons.add, size: 16, color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final currentUser = _supabaseService.currentUser;
+                      if (currentUser != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BrandGalleryListScreen(
+                              brandId: currentUser.id,
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.visibility, size: 14, color: Colors.black87),
+                    label: const Text('View All', style: TextStyle(color: Colors.black87)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[300],
+                      foregroundColor: Colors.black87,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   ),
-                );
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (brandGallery.isEmpty)
+            ResponsiveCard(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.photo_library_outlined,
+                    size: 48,
+                    color: AppTheme.primaryMaroon.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No Gallery Images Yet',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Showcase your brand with beautiful images. Start building your visual portfolio.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black.withOpacity(0.5),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      final currentUser = _supabaseService.currentUser;
+                      if (currentUser != null) {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => BrandGalleryFormScreen(
+                              brandId: currentUser.id,
+                            ),
+                          ),
+                        );
+                        if (result == true) {
+                          _loadDashboardData();
+                        }
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryMaroon,
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add First Image'),
+                  ),
+                ],
+              ),
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 600) {
+                  return SizedBox(
+                    height: 160,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: brandGallery.length,
+                      itemBuilder: (context, index) {
+                        final galleryItem = brandGallery[index];
+                        return Container(
+                          width: 180,
+                          margin: const EdgeInsets.only(right: 16),
+                          child: _buildGalleryItem(context, galleryItem, isMobile: true),
+                        );
+                      },
+                    ),
+                  );
+                } else {
+                  return SizedBox(
+                    height: 180,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: brandGallery.length,
+                      itemBuilder: (context, index) {
+                        final galleryItem = brandGallery[index];
+                        return Container(
+                          width: 220,
+                          margin: const EdgeInsets.only(right: 20),
+                          child: _buildGalleryItem(context, galleryItem, isMobile: false),
+                        );
+                      },
+                    ),
+                  );
+                }
               },
             ),
-          ),
-      ],
+        ],
+      ),
     );
+  }
+
+  Widget _buildGalleryItem(BuildContext context, Map<String, dynamic> galleryItem, {required bool isMobile}) {
+    return ResponsiveCard(
+      onTap: () {
+        _showGalleryPreview(context, galleryItem);
+      },
+      isInteractive: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Image preview - larger and more adaptive
+          Expanded(
+            flex: 5,
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBlue.withOpacity(0.1),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  topRight: Radius.circular(8),
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(8),
+                  topRight: Radius.circular(8),
+                ),
+                child: _getGalleryImageUrl(galleryItem) != null
+                    ? _buildResponsiveImageWidget(_getGalleryImageUrl(galleryItem)!, isMobile)
+                    : Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.image,
+                              size: isMobile ? 32 : 40,
+                              color: AppTheme.primaryBlue,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'No Image',
+                              style: TextStyle(
+                                fontSize: isMobile ? 10 : 12,
+                                color: AppTheme.textMediumGray,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
+          ),
+          // Text content - more spacious and readable
+          Expanded(
+            flex: 2,
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 8 : 12,
+                vertical: isMobile ? 8 : 10,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Title
+                  if (galleryItem['title'] != null)
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        galleryItem['title'],
+                        style: TextStyle(
+                          fontSize: isMobile ? 12 : 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textDarkCharcoal,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  // Date and menu
+                  Expanded(
+                    flex: 1,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _formatDate(galleryItem['created_at']),
+                            style: TextStyle(
+                              fontSize: isMobile ? 10 : 11,
+                              color: AppTheme.textMediumGray,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            _showGalleryContextMenu(context, galleryItem);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.more_vert,
+                              size: isMobile ? 16 : 18,
+                              color: AppTheme.textMediumGray,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageWidget(String imageUrl) {
+    // Handle empty or null URLs
+    if (imageUrl.isEmpty) {
+      return Center(
+        child: Icon(
+          Icons.image_not_supported,
+          size: ResponsiveUtils.getIconSize(context, mobile: 24, tablet: 32, desktop: 40),
+          color: AppTheme.primaryBlue,
+        ),
+      );
+    }
+
+    // Handle base64 encoded images (legacy support)
+    if (imageUrl.startsWith('data:image')) {
+      try {
+      return Image.memory(
+        base64Decode(imageUrl.substring(imageUrl.indexOf(',') + 1)),
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+          errorBuilder: (context, error, stackTrace) {
+            return Center(
+          child: Icon(
+            Icons.image_not_supported,
+            size: ResponsiveUtils.getIconSize(context, mobile: 24, tablet: 32, desktop: 40),
+            color: AppTheme.primaryBlue,
+          ),
+            );
+          },
+        );
+      } catch (e) {
+        return Center(
+          child: Icon(
+            Icons.image_not_supported,
+            size: ResponsiveUtils.getIconSize(context, mobile: 24, tablet: 32, desktop: 40),
+            color: AppTheme.primaryBlue,
+          ),
+        );
+      }
+    } 
+    // Handle network images
+    else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: Colors.grey[200],
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / 
+                      loadingProgress.expectedTotalBytes!
+                    : null,
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.image_not_supported,
+                size: ResponsiveUtils.getIconSize(context, mobile: 24, tablet: 32, desktop: 40),
+                color: AppTheme.primaryBlue,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    // Handle local file paths or other formats
+    else {
+      return Center(
+        child: Icon(
+          Icons.image_not_supported,
+          size: ResponsiveUtils.getIconSize(context, mobile: 24, tablet: 32, desktop: 40),
+          color: AppTheme.primaryBlue,
+        ),
+      );
+    }
+  }
+
+  Widget _buildResponsiveImageWidget(String imageUrl, bool isMobile) {
+    // Handle empty or null URLs
+    if (imageUrl.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.image_not_supported,
+              size: isMobile ? 28 : 36,
+              color: AppTheme.primaryBlue,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'No Image',
+              style: TextStyle(
+                fontSize: isMobile ? 9 : 11,
+                color: AppTheme.textMediumGray,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Handle base64 encoded images
+    if (imageUrl.startsWith('data:image')) {
+      try {
+        return Image.memory(
+          base64Decode(imageUrl.substring(imageUrl.indexOf(',') + 1)),
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (context, error, stackTrace) => Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.image_not_supported,
+                  size: isMobile ? 28 : 36,
+                  color: AppTheme.primaryBlue,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Image not available',
+                  style: TextStyle(
+                    fontSize: isMobile ? 9 : 11,
+                    color: AppTheme.textMediumGray,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } catch (e) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.image_not_supported,
+                size: isMobile ? 28 : 36,
+                color: AppTheme.primaryBlue,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Invalid Image',
+                style: TextStyle(
+                  fontSize: isMobile ? 9 : 11,
+                  color: AppTheme.textMediumGray,
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    } 
+    // Handle network images
+    else if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: Colors.grey[200],
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / 
+                      loadingProgress.expectedTotalBytes!
+                    : null,
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.image_not_supported,
+                size: isMobile ? 28 : 36,
+                color: AppTheme.primaryBlue,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Image not available',
+                style: TextStyle(
+                  fontSize: isMobile ? 9 : 11,
+                  color: AppTheme.textMediumGray,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    // Handle local file paths or other formats
+    else {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.image_not_supported,
+              size: isMobile ? 28 : 36,
+              color: AppTheme.primaryBlue,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Unsupported format',
+              style: TextStyle(
+                fontSize: isMobile ? 9 : 11,
+                color: AppTheme.textMediumGray,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  bool _isImageFile(String? fileType) {
+    if (fileType == null) return false;
+    final imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+    return imageTypes.contains(fileType.toLowerCase());
+  }
+
+  String? _getFileTypeFromName(String? fileName) {
+    if (fileName == null) return null;
+    final extension = fileName.split('.').last.toLowerCase();
+    return extension;
   }
 
   IconData _getFileTypeIcon(String? fileType) {
@@ -1425,245 +1761,6 @@ class _BrandDashboardState extends State<BrandDashboard> {
     }
   }
 
-  Widget _buildBrandGallery(BuildContext context) {
-    final brandGallery = _dashboardData!['brandGallery'] as List<dynamic>? ?? [];
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-              'Brand Gallery',
-          style: TextStyle(
-                fontSize: ResponsiveUtils.getFontSize(context, mobile: 20, tablet: 24, desktop: 28),
-            fontWeight: FontWeight.bold,
-            color: AppTheme.textDarkCharcoal,
-          ),
-        ),
-            ElevatedButton.icon(
-              onPressed: () async {
-                final currentUser = _supabaseService.currentUser;
-                if (currentUser != null) {
-                  final result = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => BrandGalleryFormScreen(
-                        brandId: currentUser.id,
-                      ),
-                    ),
-                  );
-                  if (result == true) {
-                    // Refresh dashboard data
-                    _loadDashboardData();
-                  }
-                }
-              },
-              icon: const Icon(Icons.add_photo_alternate, size: 18),
-              label: Text(
-                'Add Image',
-                style: TextStyle(
-                  fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
-                foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(
-                  horizontal: ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20),
-                  vertical: ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 10, desktop: 12),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 10, desktop: 12)),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        if (brandGallery.isEmpty)
-          DashboardEmptyWidget(
-            title: 'No Gallery Images Yet',
-            message: 'Showcase your brand with beautiful images. Start building your visual portfolio.',
-            icon: Icons.photo_library_outlined,
-            onAction: () async {
-              final currentUser = _supabaseService.currentUser;
-              if (currentUser != null) {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => BrandGalleryFormScreen(
-                      brandId: currentUser.id,
-                    ),
-                  ),
-                );
-                if (result == true) {
-                  // Refresh dashboard data
-                  _loadDashboardData();
-                }
-              }
-            },
-            actionLabel: 'Add First Image',
-          )
-        else
-          LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth < 600) {
-                // Mobile: 2 columns
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16),
-                    mainAxisSpacing: ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16),
-                    childAspectRatio: 1.0,
-                  ),
-                  itemCount: brandGallery.length,
-                  itemBuilder: (context, index) {
-                    final galleryItem = brandGallery[index];
-                    return _buildGalleryItem(context, galleryItem, isMobile: true);
-                  },
-                );
-              } else {
-                // Tablet/Desktop: 3 columns
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20),
-                    mainAxisSpacing: ResponsiveUtils.getSpacing(context, mobile: 12, tablet: 16, desktop: 20),
-                    childAspectRatio: 1.0,
-                  ),
-                  itemCount: brandGallery.length,
-                  itemBuilder: (context, index) {
-                    final galleryItem = brandGallery[index];
-                    return _buildGalleryItem(context, galleryItem, isMobile: false);
-                  },
-                );
-              }
-            },
-          ),
-      ],
-    );
-  }
-
-  Widget _buildGalleryItem(BuildContext context, Map<String, dynamic> galleryItem, {required bool isMobile}) {
-    return ResponsiveCard(
-      onTap: () {
-        // TODO: Navigate to gallery item details or show full screen
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Viewing: ${galleryItem['title'] ?? 'Image'}')),
-        );
-      },
-      isInteractive: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image section
-          Expanded(
-            child: Container(
-              width: double.infinity,
-            decoration: BoxDecoration(
-                color: AppTheme.primaryBlue.withOpacity(0.1),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                  topRight: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                ),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                  topRight: Radius.circular(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-                ),
-                child: galleryItem['image_url'] != null
-                    ? Image.network(
-                        galleryItem['image_url'],
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Center(
-            child: Icon(
-                            Icons.image_not_supported,
-                            size: ResponsiveUtils.getIconSize(context, mobile: 24, tablet: 32, desktop: 40),
-                            color: AppTheme.primaryBlue,
-                          ),
-                        ),
-                      )
-                    : Center(
-                        child: Icon(
-                          Icons.image,
-                          size: ResponsiveUtils.getIconSize(context, mobile: 24, tablet: 32, desktop: 40),
-                          color: AppTheme.primaryBlue,
-                        ),
-                      ),
-              ),
-            ),
-          ),
-          // Content section
-          Padding(
-            padding: EdgeInsets.all(ResponsiveUtils.getSpacing(context, mobile: 8, tablet: 12, desktop: 16)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (galleryItem['title'] != null) ...[
-                Text(
-                    galleryItem['title'],
-              style: TextStyle(
-                      fontSize: ResponsiveUtils.getFontSize(context, mobile: 12, tablet: 14, desktop: 16),
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textDarkCharcoal,
-                  ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                ],
-                if (galleryItem['description'] != null) ...[
-                Text(
-                    galleryItem['description'],
-                    style: TextStyle(
-                      fontSize: ResponsiveUtils.getFontSize(context, mobile: 10, tablet: 12, desktop: 14),
-                    color: AppTheme.textMediumGray,
-                  ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                ],
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _formatDate(galleryItem['created_at']),
-                      style: TextStyle(
-                        fontSize: ResponsiveUtils.getFontSize(context, mobile: 8, tablet: 10, desktop: 12),
-                        color: AppTheme.textMediumGray,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        _showGalleryContextMenu(context, galleryItem);
-                      },
-                      icon: Icon(
-                        Icons.more_vert,
-                        size: ResponsiveUtils.getIconSize(context, mobile: 14, tablet: 16, desktop: 18),
-                        color: AppTheme.textMediumGray,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showLookbookContextMenu(BuildContext context, Map<String, dynamic> lookbook) {
     showModalBottomSheet(
       context: context,
@@ -1674,7 +1771,7 @@ class _BrandDashboardState extends State<BrandDashboard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.edit, color: AppTheme.primaryBlue),
+                leading: const Icon(Icons.edit, color: AppTheme.primaryMaroon),
                 title: const Text('Edit Lookbook'),
                 onTap: () async {
                   Navigator.pop(context);
@@ -1762,7 +1859,7 @@ class _BrandDashboardState extends State<BrandDashboard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.edit, color: AppTheme.primaryBlue),
+                leading: const Icon(Icons.edit, color: AppTheme.primaryMaroon),
                 title: const Text('Edit Gallery Item'),
                 onTap: () async {
                   Navigator.pop(context);
@@ -1834,6 +1931,446 @@ class _BrandDashboardState extends State<BrandDashboard> {
                 },
               ),
             ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildExhibitionCard(Map<String, dynamic> exhibition, BuildContext context, {required bool isMobile}) {
+    return Container(
+      width: isMobile ? double.infinity : 280,
+      margin: EdgeInsets.only(
+        right: isMobile ? 0 : 12,
+        bottom: isMobile ? 12 : 0,
+      ),
+      child: ExhibitionCard(
+        exhibition: exhibition,
+        isListView: isMobile,
+        onTap: () => _navigateToExhibitionDetails(exhibition['id']),
+        onFavorite: () async {
+          try {
+            final currentUser = _supabaseService.currentUser;
+            if (currentUser != null) {
+              await _supabaseService.toggleExhibitionFavorite(
+                currentUser.id,
+                exhibition['id'],
+              );
+              
+              // Update the local state immediately for better UX
+              setState(() {
+                // Update favorite status in recommended exhibitions
+                final recommendedIndex = _dashboardData!['recommendedExhibitions'].indexWhere(
+                  (e) => e['id'] == exhibition['id']
+                );
+                if (recommendedIndex != -1) {
+                  _dashboardData!['recommendedExhibitions'][recommendedIndex]['isFavorite'] = 
+                    !(_dashboardData!['recommendedExhibitions'][recommendedIndex]['isFavorite'] ?? false);
+                }
+                
+                // Update favorite status in city exhibitions
+                final cityIndex = _dashboardData!['exhibitionsByCity'].indexWhere(
+                  (e) => e['id'] == exhibition['id']
+                );
+                if (cityIndex != -1) {
+                  _dashboardData!['exhibitionsByCity'][cityIndex]['isFavorite'] = 
+                    !(_dashboardData!['exhibitionsByCity'][cityIndex]['isFavorite'] ?? false);
+                }
+              });
+              
+              // Show success message
+              final isNowFavorite = !(exhibition['isFavorite'] ?? false);
+              final message = isNowFavorite ? 'Added to favorites' : 'Removed from favorites';
+              
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(message),
+                    backgroundColor: AppTheme.successGreen,
+                  ),
+                );
+              }
+            }
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error updating favorite: $e'),
+                  backgroundColor: AppTheme.errorRed,
+                ),
+              );
+            }
+          }
+        },
+      ),
+    );
+  }
+
+  String _formatExhibitionDate(String? startDate, String? endDate) {
+    if (startDate == null) return 'Date TBD';
+    
+    try {
+      final start = DateTime.parse(startDate);
+      final end = endDate != null ? DateTime.parse(endDate) : null;
+      
+      if (end != null && start.year == end.year && start.month == end.month && start.day == end.day) {
+        // Same day
+        return '${start.day} ${_getMonthName(start.month)} ${start.year}';
+      } else if (end != null && start.year == end.year && start.month == end.month) {
+        // Same month
+        return '${start.day}-${end.day} ${_getMonthName(start.month)} ${start.year}';
+      } else if (end != null && start.year == end.year) {
+        // Same year
+        return '${start.day} ${_getMonthName(start.month)} - ${end.day} ${_getMonthName(end.month)} ${start.year}';
+      } else if (end != null) {
+        // Different years
+        return '${start.day} ${_getMonthName(start.month)} ${start.year} - ${end.day} ${_getMonthName(end.month)} ${end.year}';
+      } else {
+        // Only start date
+        return '${start.day} ${_getMonthName(start.month)} ${start.year}';
+      }
+    } catch (e) {
+      return 'Date TBD';
+    }
+  }
+
+  String _getMonthName(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return months[month - 1];
+  }
+
+  String? _getGalleryImageUrl(Map<String, dynamic> galleryItem) {
+    // Try different possible image URL fields
+    final possibleFields = ['image_url', 'file_url', 'url', 'image', 'file'];
+    
+    for (final field in possibleFields) {
+      final value = galleryItem[field];
+      if (value != null && value.toString().isNotEmpty) {
+        return value.toString();
+      }
+    }
+    
+    return null;
+  }
+
+  void _showLookbookPreview(BuildContext context, Map<String, dynamic> lookbook) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryMaroon,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _getFileTypeIcon(_getFileTypeFromName(lookbook['file_name'])),
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          lookbook['file_name'] ?? 'Untitled Look Book',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        if (lookbook['description'] != null) ...[
+                          Text(
+                            lookbook['description'],
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        // File preview
+                        Expanded(
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
+                            child: lookbook['file_url'] != null && _isImageFile(_getFileTypeFromName(lookbook['file_name']))
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      lookbook['file_url'],
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (context, error, stackTrace) => Center(
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.image_not_supported,
+                                              size: 48,
+                                              color: Colors.grey[400],
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              'Image not available',
+                                              style: TextStyle(
+                                                color: Colors.grey[600],
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          _getFileTypeIcon(_getFileTypeFromName(lookbook['file_name'])),
+                                          size: 64,
+                                          color: AppTheme.primaryMaroon,
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          _getFileTypeFromName(lookbook['file_name'])?.toUpperCase() ?? 'FILE',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.primaryMaroon,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Preview not available',
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        ElevatedButton.icon(
+                                          onPressed: () {
+                                            // TODO: Open file in external viewer
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text('Opening: ${lookbook['file_name']}')),
+                                            );
+                                          },
+                                          icon: const Icon(Icons.open_in_new),
+                                          label: const Text('Open File'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppTheme.primaryMaroon,
+                                            foregroundColor: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Footer info
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Added ${_formatDate(lookbook['created_at'])}',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              _getFileTypeFromName(lookbook['file_name'])?.toUpperCase() ?? 'FILE',
+                              style: TextStyle(
+                                color: AppTheme.primaryMaroon,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showGalleryPreview(BuildContext context, Map<String, dynamic> galleryItem) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryBlue,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.image,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          galleryItem['title'] ?? 'Gallery Image',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                // Content
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        if (galleryItem['description'] != null) ...[
+                          Text(
+                            galleryItem['description'],
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        // Image preview
+                        Expanded(
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
+                            child: _getGalleryImageUrl(galleryItem) != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: _buildImageWidget(_getGalleryImageUrl(galleryItem)!),
+                                  )
+                                : Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.image_not_supported,
+                                          size: 64,
+                                          color: Colors.grey[400],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        Text(
+                                          'No image available',
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Footer info
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Added ${_formatDate(galleryItem['created_at'])}',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 12,
+                              ),
+                            ),
+                            Text(
+                              'IMAGE',
+                              style: TextStyle(
+                                color: AppTheme.primaryBlue,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },

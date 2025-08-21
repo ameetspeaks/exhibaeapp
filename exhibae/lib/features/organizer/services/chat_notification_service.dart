@@ -49,13 +49,10 @@ class ChatNotificationService {
 
     _messageChannel = _supabaseService.client
         .channel('public:messages')
-        .on(
-          RealtimeListenTypes.postgresChanges,
-          SupabaseEventTypes.insert,
-          (payload) async {
-            if (payload.newRecord == null) return;
-
-            final message = Map<String, dynamic>.from(payload.newRecord!);
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          callback: (payload) async {
+            final message = Map<String, dynamic>.from(payload.newRecord);
             if (message['sender_id'] == userId) return;
 
             // Get chat details
@@ -76,7 +73,7 @@ class ChatNotificationService {
                 .eq('id', message['chat_id'])
                 .single();
 
-            if (chat == null) return;
+
 
             // Show notification
             await _showMessageNotification(
@@ -84,7 +81,6 @@ class ChatNotificationService {
               message: message,
             );
           },
-          filter: 'organizer_id=eq.$userId',
         )
         .subscribe();
   }
@@ -141,12 +137,12 @@ class ChatNotificationService {
       // Get unread message count
       final response = await _supabaseService.client
           .from('messages')
-          .select('id', const FetchOptions(count: CountOption.exact))
+          .select('id')
           .eq('organizer_id', userId)
           .neq('sender_id', userId)
           .eq('is_read', false);
 
-      final count = response.count ?? 0;
+      final count = response.length;
 
       // Update badge count
       await _notifications.initialize(

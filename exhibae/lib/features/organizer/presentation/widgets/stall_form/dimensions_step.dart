@@ -130,8 +130,8 @@ class _DimensionsStepState extends State<DimensionsStep> {
                   return DropdownButtonFormField<String>(
                     value: state.formData.measurementUnitId,
                     items: _measurementUnits.map((unit) {
-                      return DropdownMenuItem(
-                        value: unit['id'],
+                      return DropdownMenuItem<String>(
+                        value: unit['id'] as String,
                         child: Text(
                           '${unit['name']} (${unit['symbol']})',
                           style: const TextStyle(color: AppTheme.white),
@@ -153,6 +153,8 @@ class _DimensionsStepState extends State<DimensionsStep> {
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.all(16),
                     ),
+                    isExpanded: true,
+                    menuMaxHeight: 200,
                   );
                 },
               ),

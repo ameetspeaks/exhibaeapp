@@ -25,14 +25,11 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
 
   Future<void> _loadAmenities() async {
     try {
-      final response = await _supabaseService.client
-          .from('amenities')
-          .select()
-          .order('name');
+      final amenities = await _supabaseService.getAmenities();
 
       if (mounted) {
         setState(() {
-          _amenities = List<Map<String, dynamic>>.from(response);
+          _amenities = amenities;
           _isLoading = false;
         });
       }
@@ -48,7 +45,7 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
 
   void _toggleAmenity(String amenityId) {
     final formState = Provider.of<ExhibitionFormState>(context, listen: false);
-    final currentAmenities = List<String>.from(formState.formData.amenities);
+    final currentAmenities = List<String>.from(formState.formData.selectedAmenities);
     
     if (currentAmenities.contains(amenityId)) {
       currentAmenities.remove(amenityId);
@@ -57,6 +54,48 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
     }
     
     formState.updateAmenities(currentAmenities);
+  }
+
+  IconData _getAmenityIcon(String? iconName) {
+    // Map common amenity names to icons
+    switch (iconName?.toLowerCase()) {
+      case 'wifi':
+        return Icons.wifi;
+      case 'parking':
+        return Icons.local_parking;
+      case 'food':
+      case 'restaurant':
+        return Icons.restaurant;
+      case 'security':
+        return Icons.security;
+      case 'accessibility':
+        return Icons.accessible;
+      case 'power':
+        return Icons.power;
+      case 'lighting':
+        return Icons.lightbulb;
+      case 'sound':
+      case 'audio':
+        return Icons.volume_up;
+      case 'stage':
+        return Icons.event;
+      case 'seating':
+        return Icons.event_seat;
+      case 'storage':
+        return Icons.inventory;
+      case 'cleaning':
+        return Icons.cleaning_services;
+      case 'transport':
+        return Icons.directions_car;
+      case 'medical':
+        return Icons.medical_services;
+      case 'information':
+        return Icons.info;
+      case 'registration':
+        return Icons.app_registration;
+      default:
+        return Icons.check_circle;
+    }
   }
 
   @override
@@ -78,7 +117,7 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
           Text(
             'Select the amenities available at your venue',
             style: TextStyle(
-              color: AppTheme.white.withOpacity(0.8),
+              color: AppTheme.white.withValues(alpha: 0.8),
               fontSize: 14,
             ),
           ),
@@ -107,7 +146,7 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
                   Text(
                     _error!,
                     style: TextStyle(
-                      color: AppTheme.white.withOpacity(0.7),
+                      color: AppTheme.white.withValues(alpha: 0.7),
                       fontSize: 14,
                     ),
                   ),
@@ -115,7 +154,7 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
                   ElevatedButton(
                     onPressed: _loadAmenities,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.white.withOpacity(0.2),
+                      backgroundColor: AppTheme.white.withValues(alpha: 0.2),
                       foregroundColor: AppTheme.white,
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       shape: RoundedRectangleBorder(
@@ -136,10 +175,10 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppTheme.white.withOpacity(0.1),
+                        color: AppTheme.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppTheme.white.withOpacity(0.2),
+                          color: AppTheme.white.withValues(alpha: 0.2),
                           width: 1,
                         ),
                       ),
@@ -159,10 +198,10 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
                             spacing: 12,
                             runSpacing: 12,
                             children: _amenities
-                                .where((amenity) => amenity['is_popular'] == true)
+                                .take(6) // Show first 6 as popular
                                 .map((amenity) => _buildAmenityChip(
                                   amenity,
-                                  state.formData.amenities.contains(amenity['id']),
+                                  state.formData.selectedAmenities.contains(amenity['id']),
                                 ))
                                 .toList(),
                           ),
@@ -175,10 +214,10 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppTheme.white.withOpacity(0.1),
+                        color: AppTheme.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppTheme.white.withOpacity(0.2),
+                          color: AppTheme.white.withValues(alpha: 0.2),
                           width: 1,
                         ),
                       ),
@@ -200,19 +239,19 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
                             itemCount: _amenities.length,
                             itemBuilder: (context, index) {
                               final amenity = _amenities[index];
-                              final isSelected = state.formData.amenities.contains(amenity['id']);
+                              final isSelected = state.formData.selectedAmenities.contains(amenity['id']);
                               
                               return Container(
                                 margin: const EdgeInsets.only(bottom: 8),
                                 decoration: BoxDecoration(
                                   color: isSelected
-                                      ? AppTheme.white.withOpacity(0.2)
-                                      : AppTheme.white.withOpacity(0.1),
+                                      ? AppTheme.white.withValues(alpha: 0.2)
+                                      : AppTheme.white.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: isSelected
-                                        ? AppTheme.white.withOpacity(0.4)
-                                        : AppTheme.white.withOpacity(0.2),
+                                        ? AppTheme.white.withValues(alpha: 0.4)
+                                        : AppTheme.white.withValues(alpha: 0.2),
                                     width: 1,
                                   ),
                                 ),
@@ -228,14 +267,11 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
                                           Container(
                                             padding: const EdgeInsets.all(8),
                                             decoration: BoxDecoration(
-                                              color: AppTheme.white.withOpacity(0.1),
+                                              color: AppTheme.white.withValues(alpha: 0.1),
                                               borderRadius: BorderRadius.circular(8),
                                             ),
                                             child: Icon(
-                                              IconData(
-                                                int.parse(amenity['icon'] ?? '0xe88a'),
-                                                fontFamily: 'MaterialIcons',
-                                              ),
+                                              _getAmenityIcon(amenity['icon']),
                                               color: AppTheme.white,
                                               size: 24,
                                             ),
@@ -258,7 +294,7 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
                                                   Text(
                                                     amenity['description'],
                                                     style: TextStyle(
-                                                      color: AppTheme.white.withOpacity(0.8),
+                                                      color: AppTheme.white.withValues(alpha: 0.8),
                                                       fontSize: 14,
                                                     ),
                                                   ),
@@ -274,11 +310,11 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
                                               shape: BoxShape.circle,
                                               color: isSelected
                                                   ? AppTheme.white
-                                                  : AppTheme.white.withOpacity(0.1),
+                                                  : AppTheme.white.withValues(alpha: 0.1),
                                               border: Border.all(
                                                 color: isSelected
                                                     ? AppTheme.white
-                                                    : AppTheme.white.withOpacity(0.2),
+                                                    : AppTheme.white.withValues(alpha: 0.2),
                                                 width: 2,
                                               ),
                                             ),
@@ -314,12 +350,12 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
     return FilterChip(
       selected: isSelected,
       onSelected: (selected) => _toggleAmenity(amenity['id']),
-      backgroundColor: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.1),
+      backgroundColor: isSelected ? AppTheme.white : AppTheme.white.withValues(alpha: 0.1),
       selectedColor: AppTheme.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
-          color: isSelected ? AppTheme.white : AppTheme.white.withOpacity(0.2),
+          color: isSelected ? AppTheme.white : AppTheme.white.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -327,10 +363,7 @@ class _AmenitiesStepState extends State<AmenitiesStep> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            IconData(
-              int.parse(amenity['icon'] ?? '0xe88a'),
-              fontFamily: 'MaterialIcons',
-            ),
+            _getAmenityIcon(amenity['icon']),
             color: isSelected ? AppTheme.gradientBlack : AppTheme.white,
             size: 16,
           ),

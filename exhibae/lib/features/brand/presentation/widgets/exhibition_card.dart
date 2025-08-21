@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/routes/app_router.dart';
+import '../../../../core/services/supabase_service.dart';
 
 class ExhibitionCard extends StatefulWidget {
   final Map<String, dynamic> exhibition;
@@ -25,12 +26,18 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
   int _currentGalleryIndex = 0;
   late PageController _bannerPageController;
   late PageController _galleryPageController;
+  List<Map<String, dynamic>> _galleryImages = [];
+  bool _isLoadingImages = true;
+  bool _isFavorite = false;
+  bool _isLoadingFavorite = true;
 
   @override
   void initState() {
     super.initState();
     _bannerPageController = PageController();
     _galleryPageController = PageController();
+    _loadGalleryImages();
+    _checkFavoriteStatus();
   }
 
   @override
@@ -40,42 +47,130 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
     super.dispose();
   }
 
-  List<String> get _bannerImages {
-    // Check for banner_image first, then fallback to image_url
-    final bannerImage = widget.exhibition['banner_image'];
-    final imageUrl = widget.exhibition['image_url'];
-    
-    if (bannerImage != null && bannerImage.isNotEmpty) {
-      return [bannerImage];
-    } else if (imageUrl != null && imageUrl.isNotEmpty) {
-      return [imageUrl];
+  Future<void> _loadGalleryImages() async {
+    try {
+      final supabaseService = SupabaseService.instance;
+      final images = await supabaseService.getGalleryImages(widget.exhibition['id']);
+      
+      if (mounted) {
+        setState(() {
+          _galleryImages = images;
+          _isLoadingImages = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingImages = false;
+        });
+      }
     }
-    return [];
   }
 
-  List<String> get _galleryImages {
-    final images = widget.exhibition['images'] as List<dynamic>? ?? [];
-    if (images.isNotEmpty) {
-      // Convert to URLs using SupabaseService if needed
-      return images.map((img) {
-        if (img is String) {
-          // If it's already a URL, return as is
-          if (img.startsWith('http')) {
-            return img;
-          }
-          // If it's a file path, construct the URL
-          return img;
+  Future<void> _checkFavoriteStatus() async {
+    try {
+      final supabaseService = SupabaseService.instance;
+      final currentUser = supabaseService.currentUser;
+      
+      if (currentUser != null) {
+        final isFavorited = await supabaseService.isExhibitionFavorited(
+          currentUser.id,
+          widget.exhibition['id'],
+        );
+        
+        if (mounted) {
+          setState(() {
+            _isFavorite = isFavorited;
+            _isLoadingFavorite = false;
+          });
         }
-        return img.toString();
-      }).toList();
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoadingFavorite = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingFavorite = false;
+        });
+      }
     }
-    return [];
+  }
+
+  Future<void> _handleFavoriteToggle() async {
+    try {
+      final supabaseService = SupabaseService.instance;
+      final currentUser = supabaseService.currentUser;
+      
+      if (currentUser == null) {
+        // Show login required message
+        return;
+      }
+      
+      // Optimistically update UI
+      setState(() {
+        _isFavorite = !_isFavorite;
+      });
+      
+      // Call the original onFavorite callback if provided
+      if (widget.onFavorite != null) {
+        widget.onFavorite();
+      }
+      
+      // Toggle in database
+      await supabaseService.toggleExhibitionFavorite(
+        currentUser.id,
+        widget.exhibition['id'],
+      );
+      
+      // Verify the status after toggle
+      await _checkFavoriteStatus();
+      
+    } catch (e) {
+      // Revert optimistic update on error
+      setState(() {
+        _isFavorite = !_isFavorite;
+      });
+      
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating favorite: $e'),
+            backgroundColor: AppTheme.errorRed,
+          ),
+        );
+      }
+    }
+  }
+
+  List<String> get _bannerImages {
+    // Get banner images from gallery (image_type = 'banner')
+    final bannerImages = _galleryImages
+        .where((img) => img['image_type'] == 'banner')
+        .map((img) => img['image_url'] as String)
+        .toList();
+    
+    return bannerImages;
+  }
+
+  List<String> get _galleryImagesUrls {
+    // Get all gallery images (excluding banners)
+    final galleryImages = _galleryImages
+        .where((img) => img['image_type'] != 'banner')
+        .map((img) => img['image_url'] as String)
+        .toList();
+    
+    return galleryImages;
   }
 
   List<String> get _allImages {
     final allImages = <String>[];
     allImages.addAll(_bannerImages);
-    allImages.addAll(_galleryImages);
+    allImages.addAll(_galleryImagesUrls);
     return allImages;
   }
 
@@ -83,8 +178,8 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
   String? get _primaryImage {
     if (_bannerImages.isNotEmpty) {
       return _bannerImages.first;
-    } else if (_galleryImages.isNotEmpty) {
-      return _galleryImages.first;
+    } else if (_galleryImagesUrls.isNotEmpty) {
+      return _galleryImagesUrls.first;
     }
     return null;
   }
@@ -106,8 +201,12 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: AppTheme.white,
+        color: AppTheme.backgroundPeach,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppTheme.borderLightGray,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppTheme.black.withOpacity(0.08),
@@ -126,22 +225,29 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
               if (_bannerImages.isNotEmpty) _buildBannerSlider(context, 200),
               
               // Gallery Images Slider (if no banner, show gallery first)
-              if (_galleryImages.isNotEmpty && _bannerImages.isEmpty) _buildGallerySlider(context, 200),
+              if (_galleryImagesUrls.isNotEmpty && _bannerImages.isEmpty) _buildGallerySlider(context, 200),
               
               // Fallback to single image or default icon
               if (_allImages.isEmpty) _buildDefaultImageSection(context, 200),
+              
+              // Loading indicator
+              if (_isLoadingImages) _buildLoadingSection(context, 200),
               
               // Favorite Button
               Positioned(
                 top: 12,
                 right: 12,
                 child: GestureDetector(
-                  onTap: widget.onFavorite,
+                  onTap: _handleFavoriteToggle,
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppTheme.white,
+                      color: AppTheme.backgroundPeach,
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppTheme.borderLightGray,
+                        width: 1,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: AppTheme.black.withOpacity(0.15),
@@ -150,11 +256,20 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                         ),
                       ],
                     ),
-                    child: Icon(
-                      (widget.exhibition['isFavorite'] == true) ? Icons.favorite : Icons.favorite_border,
-                      color: (widget.exhibition['isFavorite'] == true) ? AppTheme.errorRed : AppTheme.textMediumGray,
-                      size: 20,
-                    ),
+                    child: _isLoadingFavorite
+                      ? SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryMaroon),
+                          ),
+                        )
+                      : Icon(
+                          _isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: _isFavorite ? AppTheme.errorRed : Colors.black.withOpacity(0.6),
+                          size: 20,
+                        ),
                   ),
                 ),
               ),
@@ -173,7 +288,7 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.textDarkCharcoal,
+                    color: Colors.black,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -184,13 +299,13 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryBlue.withOpacity(0.1),
+                        color: AppTheme.primaryMaroon.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
                       Icons.calendar_today,
                       size: 16,
-                        color: AppTheme.primaryBlue,
+                        color: AppTheme.primaryMaroon,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -198,35 +313,35 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                    Text(
+                          Text(
                             widget.exhibition['date'] ?? 'Date not specified',
-                      style: const TextStyle(
-                        fontSize: 14,
+                            style: const TextStyle(
+                              fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.textDarkCharcoal,
-                      ),
-                    ),
+                              color: Colors.black,
+                            ),
+                          ),
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                    const Icon(
-                      Icons.location_on,
+                              Icon(
+                                Icons.location_on,
                                 size: 14,
-                      color: AppTheme.textMediumGray,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
+                                color: Colors.black.withOpacity(0.7),
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
                                   widget.exhibition['location'] ?? 'Location not specified',
-                        style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
-                          color: AppTheme.textMediumGray,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
+                                    color: Colors.black.withOpacity(0.7),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -240,13 +355,13 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppTheme.successGreen.withOpacity(0.1),
+                        color: AppTheme.primaryMaroon.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
                       Icons.storefront,
                       size: 16,
-                        color: AppTheme.successGreen,
+                        color: AppTheme.primaryMaroon,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -257,7 +372,7 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                         : 'No stalls available',
                       style: TextStyle(
                         fontSize: 14,
-                        color: availableStalls > 0 ? AppTheme.successGreen : AppTheme.textMediumGray,
+                        color: availableStalls > 0 ? Colors.black : Colors.black.withOpacity(0.6),
                         fontWeight: availableStalls > 0 ? FontWeight.w600 : FontWeight.normal,
                       ),
                     ),
@@ -266,7 +381,7 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryBlue.withOpacity(0.1),
+                          color: AppTheme.primaryMaroon.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -274,7 +389,7 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                         style: const TextStyle(
                             fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.primaryBlue,
+                          color: AppTheme.primaryMaroon,
                           ),
                         ),
                       ),
@@ -288,8 +403,8 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                   child: ElevatedButton(
                     onPressed: () => _navigateToExhibitionDetails(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryBlue,
-                      foregroundColor: AppTheme.white,
+                      backgroundColor: AppTheme.primaryMaroon,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -322,8 +437,12 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
       onTap: () => _navigateToExhibitionDetails(context),
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.white,
+          color: AppTheme.backgroundPeach,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppTheme.borderLightGray,
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
               color: AppTheme.black.withOpacity(0.08),
@@ -342,22 +461,29 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                 if (_bannerImages.isNotEmpty) _buildBannerSlider(context, 140),
                 
                 // Gallery Images Slider (if no banner, show gallery first)
-                if (_galleryImages.isNotEmpty && _bannerImages.isEmpty) _buildGallerySlider(context, 140),
+                if (_galleryImagesUrls.isNotEmpty && _bannerImages.isEmpty) _buildGallerySlider(context, 140),
                 
                 // Fallback to single image or default icon
                 if (_allImages.isEmpty) _buildDefaultImageSection(context, 140),
+                
+                // Loading indicator
+                if (_isLoadingImages) _buildLoadingSection(context, 140),
                 
                 // Favorite Button
                 Positioned(
                   top: 8,
                   right: 8,
                   child: GestureDetector(
-                    onTap: widget.onFavorite,
+                    onTap: _handleFavoriteToggle,
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: AppTheme.white,
+                        color: AppTheme.backgroundPeach,
                         borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: AppTheme.borderLightGray,
+                          width: 1,
+                        ),
                         boxShadow: [
                           BoxShadow(
                             color: AppTheme.black.withOpacity(0.15),
@@ -366,11 +492,20 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                           ),
                         ],
                       ),
-                      child: Icon(
-                        (widget.exhibition['isFavorite'] == true) ? Icons.favorite : Icons.favorite_border,
-                        color: (widget.exhibition['isFavorite'] == true) ? AppTheme.errorRed : AppTheme.textMediumGray,
-                        size: 18,
-                      ),
+                      child: _isLoadingFavorite
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryMaroon),
+                            ),
+                          )
+                        : Icon(
+                            _isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: _isFavorite ? AppTheme.errorRed : Colors.black.withOpacity(0.6),
+                            size: 18,
+                          ),
                     ),
                   ),
                 ),
@@ -378,116 +513,74 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
             ),
             
             // Content
-            Padding(
-              padding: const EdgeInsets.all(16),
+            Flexible(
+              child: Padding(
+                padding: const EdgeInsets.all(6),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     // Title
-                  Text(
-                    widget.exhibition['title'] ?? 'Untitled Exhibition',
-                        style: const TextStyle(
-                      fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textDarkCharcoal,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      widget.exhibition['title'] ?? 'Untitled Exhibition',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
                       ),
-                  const SizedBox(height: 8),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
                     
-                  // Date and Location
+                    // Date
                     Row(
                       children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryBlue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(
+                        Icon(
                           Icons.calendar_today,
-                          size: 12,
+                          size: 8,
                           color: AppTheme.primaryBlue,
                         ),
-                        ),
-                      const SizedBox(width: 8),
+                        const SizedBox(width: 2),
                         Expanded(
                           child: Text(
-                          widget.exhibition['date'] ?? 'Date not specified',
+                            widget.exhibition['date'] ?? 'Date not specified',
                             style: const TextStyle(
-                              fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textDarkCharcoal,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryMaroon,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                  const SizedBox(height: 6),
+                    const SizedBox(height: 1),
                     
+                    // Location
                     Row(
                       children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.textMediumGray.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(
+                        Icon(
                           Icons.location_on,
-                          size: 12,
-                          color: AppTheme.textMediumGray,
+                          size: 8,
+                          color: AppTheme.primaryBlue,
                         ),
-                      ),
-                      const SizedBox(width: 8),
+                        const SizedBox(width: 2),
                         Expanded(
                           child: Text(
-                          widget.exhibition['location'] ?? 'Location not specified',
+                            widget.exhibition['location'] ?? 'Location not specified',
                             style: const TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textMediumGray,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryMaroon,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                  const SizedBox(height: 8),
-                    
-                    // Available Stalls
-                    Row(
-                      children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.successGreen.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(
-                          Icons.storefront,
-                          size: 12,
-                          color: AppTheme.successGreen,
-                        ),
-                        ),
-                      const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            availableStalls > 0 
-                              ? '$availableStalls stalls'
-                              : 'No stalls',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: availableStalls > 0 ? AppTheme.successGreen : AppTheme.textMediumGray,
-                              fontWeight: availableStalls > 0 ? FontWeight.w600 : FontWeight.normal,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -537,14 +630,14 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                         if (loadingProgress == null) return child;
                         return Container(
                           height: height,
-                          color: AppTheme.primaryBlue.withOpacity(0.1),
+                          color: AppTheme.primaryMaroon.withOpacity(0.1),
                           child: Center(
                             child: CircularProgressIndicator(
                               value: loadingProgress.expectedTotalBytes != null
                                   ? loadingProgress.cumulativeBytesLoaded / 
                                     loadingProgress.expectedTotalBytes!
                                   : null,
-                              color: AppTheme.primaryBlue,
+                              color: AppTheme.primaryMaroon,
                             ),
                           ),
                         );
@@ -572,8 +665,8 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _currentBannerIndex == index 
-                        ? AppTheme.white 
-                        : AppTheme.white.withOpacity(0.5),
+                        ? AppTheme.primaryMaroon 
+                        : AppTheme.primaryMaroon.withOpacity(0.5),
                   ),
                 );
               }),
@@ -596,10 +689,10 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                 _currentGalleryIndex = index;
               });
             },
-            itemCount: _galleryImages.length,
+            itemCount: _galleryImagesUrls.length,
             itemBuilder: (context, index) {
               return GestureDetector(
-                onTap: () => _showImagePopup(context, _galleryImages[index]),
+                onTap: () => _showImagePopup(context, _galleryImagesUrls[index]),
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: const BorderRadius.only(
@@ -613,7 +706,7 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                       topRight: Radius.circular(12),
                     ),
                     child: Image.network(
-                      _galleryImages[index],
+                      _galleryImagesUrls[index],
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: height,
@@ -624,14 +717,14 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                         if (loadingProgress == null) return child;
                         return Container(
                           height: height,
-                          color: AppTheme.primaryBlue.withOpacity(0.1),
+                          color: AppTheme.primaryMaroon.withOpacity(0.1),
                           child: Center(
                             child: CircularProgressIndicator(
                               value: loadingProgress.expectedTotalBytes != null
                                   ? loadingProgress.cumulativeBytesLoaded / 
                                     loadingProgress.expectedTotalBytes!
                                   : null,
-                              color: AppTheme.primaryBlue,
+                              color: AppTheme.primaryMaroon,
                             ),
                           ),
                         );
@@ -644,14 +737,14 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
           ),
         ),
         // Page indicator
-        if (_galleryImages.length > 1)
+        if (_galleryImagesUrls.length > 1)
           Positioned(
             bottom: 8,
             left: 0,
             right: 0,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_galleryImages.length, (index) {
+              children: List.generate(_galleryImagesUrls.length, (index) {
                 return Container(
                   margin: const EdgeInsets.symmetric(horizontal: 2),
                   width: 8,
@@ -659,32 +752,11 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _currentGalleryIndex == index 
-                        ? AppTheme.white 
-                        : AppTheme.white.withOpacity(0.5),
+                        ? AppTheme.primaryMaroon 
+                        : AppTheme.primaryMaroon.withOpacity(0.5),
                   ),
                 );
               }),
-            ),
-          ),
-        // Image counter
-        if (_galleryImages.length > 1)
-          Positioned(
-            top: 8,
-            right: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppTheme.black.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '${_currentGalleryIndex + 1}/${_galleryImages.length}',
-                style: const TextStyle(
-                  color: AppTheme.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
             ),
           ),
       ],
@@ -696,13 +768,32 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
       height: height,
       width: double.infinity,
       decoration: BoxDecoration(
+        color: AppTheme.secondaryWarm,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(12),
           topRight: Radius.circular(12),
         ),
-        color: AppTheme.primaryBlue.withOpacity(0.1),
       ),
       child: _buildDefaultIcon(height: height),
+    );
+  }
+
+  Widget _buildLoadingSection(BuildContext context, double height) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryMaroon.withOpacity(0.1),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(12),
+          topRight: Radius.circular(12),
+        ),
+      ),
+      child: Center(
+        child: CircularProgressIndicator(
+          color: AppTheme.primaryMaroon,
+        ),
+      ),
     );
   }
 
@@ -712,7 +803,7 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
       child: Icon(
       Icons.event,
         size: iconSize,
-      color: AppTheme.primaryBlue,
+      color: AppTheme.primaryMaroon,
       ),
     );
   }
@@ -765,12 +856,12 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppTheme.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.black.withOpacity(0.5),
+                      shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       Icons.close,
-                      color: AppTheme.white,
+                      color: Colors.white,
                       size: 24,
                     ),
                   ),

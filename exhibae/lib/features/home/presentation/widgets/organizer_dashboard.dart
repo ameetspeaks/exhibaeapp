@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/services/dashboard_service.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/services/dashboard_service.dart';
+import '../../../../core/widgets/app_logo.dart';
 import '../../../../core/widgets/responsive_card.dart';
-import '../../../../core/routes/app_router.dart';
+import '../../../../core/widgets/profile_picture_display.dart';
 
 class OrganizerDashboard extends StatefulWidget {
   const OrganizerDashboard({super.key});
@@ -13,10 +14,11 @@ class OrganizerDashboard extends StatefulWidget {
 }
 
 class _OrganizerDashboardState extends State<OrganizerDashboard> {
-  final DashboardService _dashboardService = DashboardService.instance;
   final SupabaseService _supabaseService = SupabaseService.instance;
+  final DashboardService _dashboardService = DashboardService.instance;
+  
+  Map<String, dynamic> _dashboardData = {};
   bool _isLoading = true;
-  Map<String, dynamic>? _dashboardData;
   String? _error;
 
   @override
@@ -27,19 +29,19 @@ class _OrganizerDashboardState extends State<OrganizerDashboard> {
 
   Future<void> _loadDashboardData() async {
     if (!mounted) return;
-    
+
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      final userId = _supabaseService.currentUser?.id;
-      if (userId == null) {
+      final currentUser = _supabaseService.client.auth.currentUser;
+      if (currentUser == null) {
         throw Exception('User not authenticated');
       }
-
-      final data = await _dashboardService.getOrganizerDashboardData(userId);
+      
+      final data = await _dashboardService.getOrganizerDashboardData(currentUser.id);
       if (mounted) {
         setState(() {
           _dashboardData = data;
@@ -59,178 +61,253 @@ class _OrganizerDashboardState extends State<OrganizerDashboard> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.white),
+      return Scaffold(
+        backgroundColor: AppTheme.backgroundPeach,
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryMaroon),
+          ),
         ),
       );
     }
 
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Error loading dashboard',
-              style: TextStyle(
-                color: AppTheme.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              style: TextStyle(
-                color: AppTheme.white.withOpacity(0.7),
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadDashboardData,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.white.withOpacity(0.2),
-                foregroundColor: AppTheme.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+      return Scaffold(
+        backgroundColor: AppTheme.backgroundPeach,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'Error loading dashboard',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              child: const Text('Retry'),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                style: TextStyle(
+                  color: Colors.black.withOpacity(0.7),
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _loadDashboardData,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryMaroon,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
         ),
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Welcome Section
-          _buildWelcomeSection(),
-          const SizedBox(height: 24),
-
-          // Statistics Cards
-          _buildStatisticsSection(),
-          const SizedBox(height: 24),
-
-          // Create Exhibition Button
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: AppTheme.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppTheme.white.withOpacity(0.2),
-                width: 1,
-              ),
-            ),
-            child: TextButton.icon(
-              onPressed: () {
-                Navigator.pushNamed(context, AppRouter.exhibitionForm);
-              },
-              icon: Icon(
-                Icons.add_circle_outline,
-                color: AppTheme.white,
-              ),
-              label: Text(
-                'Create New Exhibition',
-                style: TextStyle(
-                  color: AppTheme.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryMaroon.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppTheme.borderLightGray,
+                  width: 1,
                 ),
               ),
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Icon(
+                Icons.dashboard,
+                color: AppTheme.primaryMaroon,
+                size: 24,
               ),
             ),
+            const SizedBox(width: 12),
+            Text(
+              'Dashboard',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryMaroon,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          // Notifications button
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryMaroon.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.borderLightGray,
+                    width: 1,
+                  ),
+                ),
+                child: Icon(
+                  Icons.notifications_outlined,
+                  color: AppTheme.primaryMaroon,
+                  size: 20,
+                ),
+              ),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Notifications coming soon!')),
+                );
+              },
+            ),
           ),
-          const SizedBox(height: 24),
-
-          // Recent Exhibitions
-          _buildRecentExhibitionsSection(),
-          const SizedBox(height: 24),
-
-          // Pending Applications
-          _buildPendingApplicationsSection(),
         ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadDashboardData,
+        color: AppTheme.primaryMaroon,
+        backgroundColor: AppTheme.backgroundPeach,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildWelcomeSection(),
+              const SizedBox(height: 20),
+              _buildStatsSection(),
+              const SizedBox(height: 20),
+              _buildQuickActionsSection(),
+              const SizedBox(height: 20),
+              _buildRecentApplicationsSection(),
+              const SizedBox(height: 20),
+              _buildRecentExhibitionsSection(),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildWelcomeSection() {
-    final profile = _dashboardData?['profile'];
+    final profile = _dashboardData['profile'] as Map<String, dynamic>?;
     final companyName = profile?['company_name'] ?? 'Organizer';
     
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
+        color: AppTheme.backgroundPeach.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
+          color: AppTheme.borderLightGray,
           width: 1,
         ),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: AppTheme.white.withOpacity(0.2),
-            child: Icon(
-              Icons.business,
-              size: 30,
-              color: AppTheme.white,
-            ),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryMaroon.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome back,',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: AppTheme.white.withOpacity(0.8),
-                  ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryMaroon.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  companyName,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.white,
+                child: Icon(
+                  Icons.business,
+                  color: AppTheme.primaryMaroon,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome back,',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppTheme.primaryMaroon.withOpacity(0.9),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      companyName,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Organizer',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppTheme.primaryMaroon.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryMaroon.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppTheme.borderLightGray,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.trending_up,
+                  color: AppTheme.primaryMaroon,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'Manage your exhibitions and applications efficiently!',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppTheme.primaryMaroon,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.pushNamed(context, AppRouter.notifications);
-            },
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.white.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppTheme.white.withOpacity(0.2),
-                  width: 1,
-                ),
-              ),
-              child: Icon(
-                Icons.notifications_outlined,
-                color: AppTheme.white,
-              ),
             ),
           ),
         ],
@@ -238,78 +315,347 @@ class _OrganizerDashboardState extends State<OrganizerDashboard> {
     );
   }
 
-  Widget _buildStatisticsSection() {
-    final stats = _dashboardData?['stats'] ?? {};
-    final activeExhibitions = stats['activeExhibitions'] ?? 0;
-    final totalApplications = stats['totalApplications'] ?? 0;
-    
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            'Active Exhibitions',
-            activeExhibitions.toString(),
-            Icons.event,
+  Widget _buildStatsSection() {
+    return Container(
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildStatCard(
+              title: 'Active Exhibitions',
+              value: '${_dashboardData['stats']?['activeExhibitions'] ?? 0}',
+              icon: Icons.event,
+              color: AppTheme.primaryMaroon,
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildStatCard(
-            'Total Applications',
-            totalApplications.toString(),
-            Icons.assignment,
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
+              title: 'Total Applications',
+              value: '${_dashboardData['stats']?['totalApplications'] ?? 0}',
+              icon: Icons.assignment,
+              color: AppTheme.primaryBlue,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon) {
+  Widget _buildQuickActionsSection() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppTheme.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: AppTheme.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(height: 12),
           Text(
-            value,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.white,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
+            'Quick Actions',
             style: TextStyle(
-              fontSize: 13,
-              color: AppTheme.white.withOpacity(0.8),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryMaroon,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickActionCard(
+                  title: 'Revenue Analytics',
+                  subtitle: 'View earnings & analytics',
+                  icon: Icons.attach_money,
+                  color: Colors.green,
+                  onTap: () => Navigator.pushNamed(context, '/revenue'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                                 child: _buildQuickActionCard(
+                   title: 'Followers',
+                   subtitle: 'View your followers',
+                   icon: Icons.people,
+                   color: AppTheme.primaryMaroon,
+                   onTap: () => Navigator.pushNamed(context, '/favorites'),
+                 ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return ResponsiveCard(
+      padding: const EdgeInsets.all(16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: color.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Icon(
+                      icon,
+                      color: color,
+                      size: 20,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 12,
+                    color: Colors.black.withOpacity(0.4),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.black.withOpacity(0.6),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      height: 60,
+      child: ResponsiveCard(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: AppTheme.borderLightGray,
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: color,
+                    size: 14,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 10,
+                color: AppTheme.primaryMaroon.withOpacity(0.8),
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+
+  Widget _buildRecentApplicationsSection() {
+    final recentApplications = _dashboardData['pendingApplications'] as List<dynamic>? ?? [];
+    
+    return Container(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Recent Applications',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryMaroon,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/applications');
+                },
+                child: Text(
+                  'View All',
+                  style: TextStyle(
+                    color: AppTheme.primaryMaroon,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (recentApplications.isEmpty)
+            ResponsiveCard(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.assignment_outlined,
+                    size: 48,
+                    color: AppTheme.primaryMaroon.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No applications yet',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Applications from brands will appear here',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black.withOpacity(0.5),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            )
+          else
+            ...recentApplications.take(3).map((application) => _buildApplicationCard(application)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApplicationCard(Map<String, dynamic> application) {
+    final brand = application['brand'] ?? {};
+    final status = application['status'] ?? 'pending';
+    
+    Color getStatusColor() {
+      switch (status) {
+        case 'approved':
+          return Colors.green;
+        case 'rejected':
+          return AppTheme.errorRed;
+        default:
+          return AppTheme.primaryMaroon;
+      }
+    }
+
+    return ResponsiveCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          ProfilePictureDisplay(
+            avatarUrl: brand['avatar_url'],
+            size: 40,
+            backgroundColor: AppTheme.primaryMaroon.withOpacity(0.1),
+            iconColor: AppTheme.primaryMaroon,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  brand['company_name'] ?? 'Unknown Brand',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  application['exhibition']?['title'] ?? 'Unknown Exhibition',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.black.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: getStatusColor().withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: getStatusColor(),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              status.toUpperCase(),
+              style: TextStyle(
+                fontSize: 10,
+                color: getStatusColor(),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -317,417 +663,263 @@ class _OrganizerDashboardState extends State<OrganizerDashboard> {
   }
 
   Widget _buildRecentExhibitionsSection() {
-    final exhibitions = _dashboardData?['organizerExhibitions'] ?? [];
+    final recentExhibitions = _dashboardData['organizerExhibitions'] as List<dynamic>? ?? [];
     
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Recent Exhibitions',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.white,
+    return Container(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Recent Exhibitions',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryMaroon,
+                ),
               ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pushNamed(context, AppRouter.exhibitions);
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.white,
-              ),
-              child: const Text('View All'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        exhibitions.isEmpty
-            ? _buildEmptyState(
-                'No exhibitions yet',
-                'Create your first exhibition to get started',
-                Icons.event_outlined,
-              )
-            : ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: exhibitions.length > 3 ? 3 : exhibitions.length,
-                itemBuilder: (context, index) {
-                  final exhibition = exhibitions[index];
-                  return _buildExhibitionCard(exhibition);
+              TextButton(
+                onPressed: () {
+                  Navigator.pushNamed(context, '/exhibitions');
                 },
+                child: Text(
+                  'View All',
+                  style: TextStyle(
+                    color: AppTheme.primaryMaroon,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
-      ],
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (recentExhibitions.isEmpty)
+            ResponsiveCard(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.event_outlined,
+                    size: 48,
+                    color: AppTheme.primaryMaroon.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No exhibitions yet',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Create your first exhibition to get started',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.black.withOpacity(0.5),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(context, '/exhibition-form');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryMaroon,
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create Exhibition'),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...recentExhibitions.take(3).map((exhibition) => _buildExhibitionCard(exhibition)),
+        ],
+      ),
     );
   }
 
   Widget _buildExhibitionCard(Map<String, dynamic> exhibition) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              AppRouter.exhibitionDetails,
-              arguments: exhibition,
-            );
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: AppTheme.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: exhibition['image_url'] != null
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            exhibition['image_url'],
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Icon(
-                                Icons.event,
-                                size: 32,
-                                color: AppTheme.white,
-                              );
-                            },
-                          ),
-                        )
-                      : Icon(
-                          Icons.event,
-                          size: 32,
-                          color: AppTheme.white,
-                        ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        exhibition['title'] ?? 'Untitled Exhibition',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.white,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        exhibition['date'] ?? 'Date not specified',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.white.withOpacity(0.8),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            size: 14,
-                            color: AppTheme.white.withOpacity(0.6),
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              exhibition['location'] ?? 'Location not specified',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.white.withOpacity(0.6),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+    final status = exhibition['status'] ?? 'draft';
+    final exhibitionId = exhibition['id'] as String?;
+    
+    Color getStatusColor() {
+      switch (status) {
+        case 'published':
+          return const Color(0xFF22C55E); // Green for "live/active"
+        case 'live':
+          return const Color(0xFF22C55E); // Green for "live/active"
+        case 'completed':
+          return const Color(0xFF3B82F6); // Blue for "done/closed properly"
+        case 'draft':
+          return const Color(0xFFFACC15); // Amber/Yellow for "work in progress"
+        case 'cancelled':
+          return const Color(0xFFEF4444); // Red for "stopped/terminated"
+        default:
+          return Colors.grey;
+      }
+    }
+
+    String getStatusDisplayText() {
+      switch (status) {
+        case 'draft':
+          return 'PENDING FOR APPROVAL';
+        default:
+          return status.toUpperCase();
+      }
+    }
+
+    // Set background color based on status
+    Color getCardBackgroundColor() {
+      switch (status) {
+        case 'published':
+          return const Color(0xFFF0FDF4); // Light green background for published status
+        case 'draft':
+          return const Color(0xFFFEFCE8); // Light amber background for draft status
+        case 'completed':
+          return const Color(0xFFEFF6FF); // Light blue background for completed status
+        case 'cancelled':
+          return const Color(0xFFFEF2F2); // Light red background for cancelled status
+        default:
+          return AppTheme.white;
+      }
+    }
+
+    return ResponsiveCard(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      backgroundColor: getCardBackgroundColor(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryMaroon.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.borderLightGray,
+                    width: 1,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.chevron_right,
-                  color: AppTheme.white.withOpacity(0.6),
+                child: Icon(
+                  Icons.event,
+                  color: AppTheme.primaryMaroon,
+                  size: 24,
                 ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPendingApplicationsSection() {
-    final applications = _dashboardData?['pendingApplications'] ?? [];
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Pending Applications',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.white,
               ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pushNamed(context, AppRouter.applications);
-              },
-              style: TextButton.styleFrom(
-                foregroundColor: AppTheme.white,
-              ),
-              child: const Text('View All'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        applications.isEmpty
-            ? _buildEmptyState(
-                'No pending applications',
-                'All caught up! No applications need review',
-                Icons.assignment_outlined,
-              )
-            : ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: applications.length > 3 ? 3 : applications.length,
-                itemBuilder: (context, index) {
-                  final application = applications[index];
-                  return _buildApplicationCard(application);
-                },
-              ),
-      ],
-    );
-  }
-
-  Widget _buildApplicationCard(Map<String, dynamic> application) {
-    final brand = application['brand'] ?? {};
-    final exhibition = application['exhibition'] ?? {};
-    final stall = application['stall'] ?? {};
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.pushNamed(
-              context,
-              AppRouter.applicationDetails,
-              arguments: application,
-            );
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppTheme.white.withOpacity(0.1),
-                      child: Text(
-                        brand['company_name']?.substring(0, 1).toUpperCase() ?? 'B',
-                        style: TextStyle(
-                          color: AppTheme.white,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    Text(
+                      exhibition['title'] ?? 'Untitled Exhibition',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            brand['company_name'] ?? 'Unknown Brand',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.white,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            exhibition['title'] ?? 'Unknown Exhibition',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.white.withOpacity(0.8),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.white.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: AppTheme.white.withOpacity(0.2),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        'Pending',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.white,
-                          fontWeight: FontWeight.w500,
-                        ),
+                    const SizedBox(height: 2),
+                    Text(
+                      exhibition['location'] ?? 'Location not specified',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.black.withOpacity(0.7),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.grid_on,
-                            size: 16,
-                            color: AppTheme.white.withOpacity(0.8),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Stall ${stall['name'] ?? 'Unknown'}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: AppTheme.white.withOpacity(0.9),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${stall['length']} × ${stall['width']} ${stall['unit']?['symbol'] ?? 'm'}',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: AppTheme.white.withOpacity(0.8),
-                              ),
-                            ),
-                          ),
-                          Text(
-                            '₹${stall['price']?.toString() ?? '0'}',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: getStatusColor().withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: getStatusColor(),
+                    width: 1,
                   ),
                 ),
+                child: Text(
+                  getStatusDisplayText(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: getStatusColor(),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (exhibitionId != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                                 Expanded(
+                   child: OutlinedButton.icon(
+                     onPressed: () {
+                       Navigator.pushNamed(
+                         context,
+                         '/applications',
+                         arguments: {
+                           'exhibitionId': exhibitionId,
+                           'exhibitionTitle': exhibition['title'] ?? 'Unknown Exhibition',
+                         },
+                       );
+                     },
+                     style: OutlinedButton.styleFrom(
+                       foregroundColor: AppTheme.primaryMaroon,
+                       side: BorderSide(color: AppTheme.primaryMaroon),
+                       padding: const EdgeInsets.symmetric(vertical: 8),
+                     ),
+                     icon: const Icon(Icons.assignment, size: 16),
+                     label: const Text('Applications'),
+                   ),
+                 ),
+                const SizedBox(width: 8),
+                                 Expanded(
+                   child: ElevatedButton.icon(
+                                           onPressed: () {
+                        Navigator.pushNamed(
+                          context,
+                          '/organizer-exhibition-details',
+                          arguments: {
+                            'exhibition': exhibition,
+                          },
+                        );
+                      },
+                                           style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryMaroon,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                      icon: const Icon(Icons.visibility, size: 16),
+                      label: const Text('Manage'),
+                   ),
+                 ),
               ],
             ),
-          ),
-        ),
+          ],
+        ],
       ),
     );
   }
 
-  Widget _buildEmptyState(String title, String subtitle, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppTheme.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppTheme.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 48,
-            color: AppTheme.white.withOpacity(0.6),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.white,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.white.withOpacity(0.8),
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
+  // Check if an exhibition can be edited
+  bool _canEditExhibition(Map<String, dynamic> exhibition) {
+    final status = exhibition['status']?.toString().toLowerCase() ?? 'draft';
+    // Only allow editing for draft, published, and live statuses
+    return status == 'draft' || status == 'published' || status == 'live';
   }
 }

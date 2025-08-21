@@ -12,8 +12,6 @@ class DashboardService {
   // Get dashboard data for brands
   Future<Map<String, dynamic>> getBrandDashboardData(String userId) async {
     try {
-      print('DashboardService: Starting to load brand dashboard data for user: $userId');
-      
       // Initialize with empty data
       Map<String, dynamic> dashboardData = {
         'profile': null,
@@ -21,7 +19,9 @@ class DashboardService {
         'activeApplications': [],
         'upcomingExhibitions': [],
         'recommendedExhibitions': [],
-        'favoriteExhibitions': [],
+        'cities': [],
+        'selectedCity': 'Delhi',
+        'exhibitionsByCity': [],
         'brandLookbooks': [],
         'brandGallery': [],
         'stats': {
@@ -32,101 +32,122 @@ class DashboardService {
       
       // Get user profile
       try {
-        print('DashboardService: Fetching user profile...');
         final profile = await _supabaseService.getUserProfile(userId);
-        print('DashboardService: User profile loaded: ${profile != null ? 'success' : 'null'}');
         dashboardData['profile'] = profile;
       } catch (e) {
-        print('DashboardService: Failed to load user profile: $e');
         // Continue without profile
       }
       
       // Get hero sliders
       try {
-        print('DashboardService: Fetching hero sliders...');
         final heroSliders = await _supabaseService.getHeroSliders();
-        print('DashboardService: Hero sliders loaded: ${heroSliders.length} items');
         dashboardData['heroSliders'] = heroSliders;
       } catch (e) {
-        print('DashboardService: Failed to load hero sliders: $e');
         // Continue without hero sliders
       }
       
       // Get stall applications
       try {
-        print('DashboardService: Fetching stall applications...');
         final applications = await _supabaseService.getStallApplications(brandId: userId);
         final activeApplications = applications.where((app) => app['status'] == 'pending' || app['status'] == 'approved').toList();
-        print('DashboardService: Stall applications loaded: ${applications.length} total, ${activeApplications.length} active');
         dashboardData['activeApplications'] = activeApplications;
         dashboardData['stats']['activeApplications'] = activeApplications.length;
       } catch (e) {
-        print('DashboardService: Failed to load stall applications: $e');
         // Continue without applications
       }
       
       // Get exhibitions
       try {
-        print('DashboardService: Fetching exhibitions...');
         final exhibitions = await _supabaseService.getExhibitions();
-        final upcomingExhibitions = exhibitions.where((exhibition) {
+        
+        // Process exhibitions to add favorite status
+        final processedExhibitions = await Future.wait(exhibitions.map((exhibition) async {
+          // Check if this exhibition is favorited by the current user
+          bool isFavorite = false;
+          try {
+            isFavorite = await _supabaseService.isExhibitionFavorited(userId, exhibition['id']);
+          } catch (e) {
+            // Continue without favorite status
+          }
+          
+          return {
+            ...exhibition,
+            'isFavorite': isFavorite,
+          };
+        }).toList());
+        
+        final upcomingExhibitions = processedExhibitions.where((exhibition) {
           final startDate = exhibition['start_date'];
           if (startDate == null) return false;
           final start = DateTime.tryParse(startDate);
           return start != null && start.isAfter(DateTime.now());
         }).toList();
-        print('DashboardService: Exhibitions loaded: ${exhibitions.length} total, ${upcomingExhibitions.length} upcoming');
         dashboardData['upcomingExhibitions'] = upcomingExhibitions;
         dashboardData['stats']['upcomingExhibitions'] = upcomingExhibitions.length;
         
         // Get recommended exhibitions (for now, just take first few)
-        final recommendedExhibitions = exhibitions.take(3).toList();
-        print('DashboardService: Recommended exhibitions: ${recommendedExhibitions.length} items');
+        final recommendedExhibitions = processedExhibitions.take(3).toList();
         dashboardData['recommendedExhibitions'] = recommendedExhibitions;
+        
+        // Store all processed exhibitions for city filtering
+        dashboardData['allExhibitions'] = processedExhibitions;
       } catch (e) {
-        print('DashboardService: Failed to load exhibitions: $e');
         // Continue without exhibitions
       }
       
-      // Get favorite exhibitions
+      // Get cities and exhibitions by city
       try {
-        print('DashboardService: Fetching favorite exhibitions...');
-        final favorites = await _supabaseService.getExhibitionFavorites(userId);
-        print('DashboardService: Favorite exhibitions loaded: ${favorites.length} items');
-        dashboardData['favoriteExhibitions'] = favorites;
+        final allExhibitions = dashboardData['allExhibitions'] as List<dynamic>? ?? [];
+        
+        // Extract unique cities from exhibitions
+        final cities = <String>{};
+        for (final exhibition in allExhibitions) {
+          if (exhibition['city'] != null && exhibition['city'].toString().isNotEmpty) {
+            cities.add(exhibition['city'].toString());
+          }
+        }
+        
+        // Sort cities alphabetically
+        final sortedCities = cities.toList()..sort();
+        dashboardData['cities'] = sortedCities;
+        
+        // Set default city to Delhi if available, otherwise first city
+        String selectedCity = 'Delhi';
+        if (sortedCities.contains('Delhi')) {
+          selectedCity = 'Delhi';
+        } else if (sortedCities.isNotEmpty) {
+          selectedCity = sortedCities.first;
+        }
+        dashboardData['selectedCity'] = selectedCity;
+        
+        // Get exhibitions for the selected city
+        if (selectedCity.isNotEmpty) {
+          final cityExhibitions = allExhibitions.where((exhibition) => 
+            exhibition['city']?.toString() == selectedCity
+          ).toList();
+          dashboardData['exhibitionsByCity'] = cityExhibitions;
+        }
       } catch (e) {
-        print('DashboardService: Failed to load favorite exhibitions: $e');
-        // Continue without favorites
+        // Continue without city data
       }
-
+      
       // Get brand lookbooks
       try {
-        print('DashboardService: Fetching brand lookbooks...');
         final lookbooks = await _supabaseService.getBrandLookbooks(userId);
-        print('DashboardService: Brand lookbooks loaded: ${lookbooks.length} items');
         dashboardData['brandLookbooks'] = lookbooks;
       } catch (e) {
-        print('DashboardService: Failed to load brand lookbooks: $e');
         // Continue without lookbooks
       }
 
       // Get brand gallery
       try {
-        print('DashboardService: Fetching brand gallery...');
         final gallery = await _supabaseService.getBrandGallery(userId);
-        print('DashboardService: Brand gallery loaded: ${gallery.length} items');
         dashboardData['brandGallery'] = gallery;
       } catch (e) {
-        print('DashboardService: Failed to load brand gallery: $e');
         // Continue without gallery
       }
-      
-      print('DashboardService: Dashboard data successfully compiled');
       return dashboardData;
     } catch (e, stackTrace) {
-      print('DashboardService: Critical error loading brand dashboard data: $e');
-      print('DashboardService: Stack trace: $stackTrace');
-      
       // Return minimal data structure even on critical failure
       return {
         'profile': null,
@@ -134,7 +155,9 @@ class DashboardService {
         'activeApplications': [],
         'upcomingExhibitions': [],
         'recommendedExhibitions': [],
-        'favoriteExhibitions': [],
+        'cities': ['Delhi'], // Default fallback
+        'selectedCity': 'Delhi',
+        'exhibitionsByCity': [],
         'brandLookbooks': [],
         'brandGallery': [],
         'stats': {
@@ -182,20 +205,21 @@ class DashboardService {
       // Get user profile
       final profile = await _supabaseService.getUserProfile(userId);
       
-      // Get organizer's exhibitions
-      final exhibitions = await _supabaseService.getExhibitions();
-      final organizerExhibitions = exhibitions.where((exhibition) => 
-        exhibition['organiser']?['id'] == userId
-      ).toList();
+      // Get organizer's exhibitions (all exhibitions created by this organizer)
+      final organizerExhibitions = await _supabaseService.getOrganizerExhibitions(userId);
       
-      // Get pending applications for organizer's exhibitions
+      // Get all applications for organizer's exhibitions
       final allApplications = await _supabaseService.getStallApplications();
-      final pendingApplications = allApplications.where((app) {
+      final organizerApplications = allApplications.where((app) {
         final exhibition = app['exhibition'];
         return exhibition != null && 
-               organizerExhibitions.any((ex) => ex['id'] == exhibition['id']) &&
-               app['status'] == 'pending';
+               organizerExhibitions.any((ex) => ex['id'] == exhibition['id']);
       }).toList();
+      
+      // Get pending applications
+      final pendingApplications = organizerApplications.where((app) => 
+        app['status'] == 'pending'
+      ).toList();
       
       return {
         'profile': profile,
@@ -205,11 +229,7 @@ class DashboardService {
           'activeExhibitions': organizerExhibitions.where((ex) => 
             ex['status'] == 'published' || ex['status'] == 'live'
           ).length,
-          'totalApplications': allApplications.where((app) {
-            final exhibition = app['exhibition'];
-            return exhibition != null && 
-                   organizerExhibitions.any((ex) => ex['id'] == exhibition['id']);
-          }).length,
+          'totalApplications': organizerApplications.length,
         }
       };
     } catch (e) {

@@ -19,6 +19,27 @@ import '../../features/organizer/presentation/screens/notification_settings_scre
 import '../../features/organizer/presentation/screens/privacy_settings_screen.dart';
 import '../../features/organizer/presentation/screens/support_screen.dart';
 import '../../features/brand/presentation/screens/brand_stalls_screen.dart';
+import '../../features/brand/presentation/screens/favorite_exhibitions_screen.dart';
+import '../../features/organizer/presentation/screens/payment_history_screen.dart';
+import '../../features/organizer/presentation/screens/payment_details_screen.dart';
+import '../../features/organizer/presentation/screens/brand_profiles_screen.dart';
+import '../../features/organizer/presentation/screens/analytics_dashboard_screen.dart';
+import '../../features/organizer/presentation/screens/reports_screen.dart';
+import '../../features/organizer/presentation/screens/stall_layout_screen.dart';
+import '../../features/organizer/presentation/screens/organizer_exhibition_details_screen.dart';
+import '../../features/organizer/presentation/screens/revenue_screen.dart';
+import '../../features/organizer/presentation/screens/favorites_screen.dart';
+import '../../features/brand/presentation/screens/payment_submission_screen.dart';
+import '../../features/organizer/presentation/screens/payment_review_screen.dart';
+import '../../features/brand/presentation/screens/stall_details_screen.dart';
+import '../../features/shopper/presentation/screens/shopper_dashboard_screen.dart';
+import '../../features/shopper/presentation/screens/shopper_home_screen.dart';
+import '../../features/shopper/presentation/screens/shopper_explore_screen.dart';
+import '../../features/shopper/presentation/screens/shopper_favorites_screen.dart';
+import '../../features/shopper/presentation/screens/shopper_exhibition_details_screen.dart';
+import '../../features/shopper/presentation/screens/shopper_profile_screen.dart';
+import '../../features/shopper/presentation/screens/edit_profile_screen.dart';
+import '../../features/organizer/presentation/screens/edit_profile_screen.dart';
 
 class AppRouter {
   static const String splash = '/splash';
@@ -41,6 +62,27 @@ class AppRouter {
   static const String privacySettings = '/privacy-settings';
   static const String support = '/support';
   static const String brandStalls = '/brand-stalls';
+  static const String favoriteExhibitions = '/favorite-exhibitions';
+  static const String paymentHistory = '/payment-history';
+  static const String paymentDetails = '/payment-details';
+  static const String brandProfiles = '/brand-profiles';
+  static const String analyticsDashboard = '/analytics-dashboard';
+  static const String reports = '/reports';
+  static const String stallLayout = '/stall-layout';
+  static const String organizerExhibitionDetails = '/organizer-exhibition-details';
+  static const String revenue = '/revenue';
+  static const String favorites = '/favorites';
+  static const String paymentSubmission = '/payment-submission';
+  static const String paymentReview = '/payment-review';
+  static const String stallDetails = '/stall-details';
+  static const String shopperDashboard = '/shopper-dashboard';
+  static const String shopperHome = '/shopper-home';
+  static const String shopperExplore = '/shopper-explore';
+  static const String shopperFavorites = '/shopper-favorites';
+  static const String shopperExhibitionDetails = '/shopper-exhibition-details';
+  static const String shopperProfile = '/shopper-profile';
+  static const String shopperEditProfile = '/shopper-edit-profile';
+  static const String organizerEditProfile = '/organizer-edit-profile';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -73,8 +115,11 @@ class AppRouter {
           ),
         );
       case home:
+        final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(
-          builder: (_) => const HomeScreen(),
+          builder: (_) => HomeScreen(
+            initialTab: args?['initialTab'] as int? ?? 0,
+          ),
         );
       case exhibitionDetails:
         final args = settings.arguments as Map<String, dynamic>;
@@ -118,8 +163,12 @@ class AppRouter {
           builder: (_) => const OrganizerExhibitionsScreen(),
         );
       case applications:
+        final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(
-          builder: (_) => const ApplicationListScreen(),
+          builder: (_) => ApplicationListScreen(
+            exhibitionId: args?['exhibitionId'] as String?,
+            exhibitionTitle: args?['exhibitionTitle'] as String?,
+          ),
         );
       case applicationDetails:
         final args = settings.arguments as Map<String, dynamic>;
@@ -143,6 +192,114 @@ class AppRouter {
       case brandStalls:
         return MaterialPageRoute(
           builder: (_) => const BrandStallsScreen(),
+        );
+      case favoriteExhibitions:
+        return MaterialPageRoute(
+          builder: (_) => const FavoriteExhibitionsScreen(),
+        );
+      case paymentHistory:
+        return MaterialPageRoute(
+          builder: (_) => const PaymentHistoryScreen(),
+        );
+      case paymentDetails:
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => PaymentDetailsScreen(
+            applicationId: args['applicationId'] as String,
+          ),
+        );
+      case brandProfiles:
+        return MaterialPageRoute(
+          builder: (_) => const BrandProfilesScreen(),
+        );
+      case analyticsDashboard:
+        return MaterialPageRoute(
+          builder: (_) => const AnalyticsDashboardScreen(),
+        );
+      case reports:
+        return MaterialPageRoute(
+          builder: (_) => const ReportsScreen(),
+        );
+      case stallLayout:
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => StallLayoutScreen(
+            exhibitionId: args['exhibitionId'] as String,
+          ),
+        );
+      case organizerExhibitionDetails:
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => OrganizerExhibitionDetailsScreen(
+            exhibition: args['exhibition'] as Map<String, dynamic>,
+          ),
+        );
+      case revenue:
+        return MaterialPageRoute(
+          builder: (_) => const RevenueScreen(),
+        );
+      case favorites:
+        return MaterialPageRoute(
+          builder: (_) => const FavoritesScreen(),
+        );
+      case paymentSubmission:
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => PaymentSubmissionScreen(
+            application: args['application'] as Map<String, dynamic>,
+          ),
+        );
+      case paymentReview:
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => PaymentReviewScreen(
+            application: args['application'] as Map<String, dynamic>,
+          ),
+        );
+      case stallDetails:
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => StallDetailsScreen(
+            stall: args['stall'] as Map<String, dynamic>,
+          ),
+        );
+      case shopperDashboard:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return MaterialPageRoute(
+          builder: (_) => ShopperDashboardScreen(
+            initialTab: args?['initialTab'] as int? ?? 0,
+          ),
+        );
+      case shopperHome:
+        return MaterialPageRoute(
+          builder: (_) => const ShopperHomeScreen(),
+        );
+      case shopperExplore:
+        return MaterialPageRoute(
+          builder: (_) => const ShopperExploreScreen(),
+        );
+      case shopperFavorites:
+        return MaterialPageRoute(
+          builder: (_) => const ShopperFavoritesScreen(),
+        );
+      case shopperExhibitionDetails:
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => ShopperExhibitionDetailsScreen(
+            exhibition: args['exhibition'] as Map<String, dynamic>,
+          ),
+        );
+      case shopperProfile:
+        return MaterialPageRoute(
+          builder: (_) => const ShopperProfileScreen(),
+        );
+      case shopperEditProfile:
+        return MaterialPageRoute(
+          builder: (_) => const ShopperEditProfileScreen(),
+        );
+      case organizerEditProfile:
+        return MaterialPageRoute(
+          builder: (_) => const OrganizerEditProfileScreen(),
         );
       default:
         return MaterialPageRoute(

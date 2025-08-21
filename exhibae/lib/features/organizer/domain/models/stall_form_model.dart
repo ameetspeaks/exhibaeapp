@@ -2,7 +2,6 @@ class StallFormModel {
   String? id;
   String exhibitionId;
   String name = '';
-  String description = '';
   double length = 0;
   double width = 0;
   double height = 0;
@@ -17,7 +16,6 @@ class StallFormModel {
       : id = json['id'],
         exhibitionId = json['exhibition_id'],
         name = json['name'] ?? '',
-        description = json['description'] ?? '',
         length = (json['length'] ?? 0).toDouble(),
         width = (json['width'] ?? 0).toDouble(),
         height = (json['height'] ?? 0).toDouble(),
@@ -31,7 +29,6 @@ class StallFormModel {
       if (id != null) 'id': id,
       'exhibition_id': exhibitionId,
       'name': name,
-      'description': description,
       'length': length,
       'width': width,
       'height': height,
@@ -44,7 +41,6 @@ class StallFormModel {
 
   bool get isValid {
     return name.isNotEmpty &&
-           description.isNotEmpty &&
            length > 0 &&
            width > 0 &&
            height > 0 &&

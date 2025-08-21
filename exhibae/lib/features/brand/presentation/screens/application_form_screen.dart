@@ -233,13 +233,14 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundLightGray,
+      backgroundColor: AppTheme.backgroundPeach,
       appBar: AppBar(
+        backgroundColor: AppTheme.backgroundPeach,
         title: Row(
           children: [
             const Icon(
               Icons.assignment,
-              color: AppTheme.primaryBlue,
+              color: AppTheme.primaryMaroon,
               size: 24,
             ),
             const SizedBox(width: 12),
@@ -252,14 +253,14 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.textDarkCharcoal,
+                      color: Colors.black,
                     ),
                   ),
                   Text(
                     widget.exhibition['title'] ?? 'Exhibition',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppTheme.textMediumGray,
+                      color: Colors.black.withOpacity(0.7),
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -442,14 +443,14 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                             _acceptTerms = value ?? false;
                           });
                         },
-                        activeColor: AppTheme.primaryBlue,
+                        activeColor: AppTheme.primaryMaroon,
                       ),
                     ),
                     Expanded(
                       child: RichText(
                         text: TextSpan(
-                          style: const TextStyle(
-                            color: AppTheme.textMediumGray,
+                          style: TextStyle(
+                            color: Colors.black.withOpacity(0.7),
                             fontSize: 14,
                           ),
                           children: [
@@ -457,7 +458,7 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                             TextSpan(
                               text: 'Terms of Service',
                               style: const TextStyle(
-                                color: AppTheme.primaryBlue,
+                                color: AppTheme.primaryMaroon,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -465,7 +466,7 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                             TextSpan(
                               text: 'Privacy Policy',
                               style: const TextStyle(
-                                color: AppTheme.primaryBlue,
+                                color: AppTheme.primaryMaroon,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -483,8 +484,8 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _submitApplication,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryBlue,
-                      foregroundColor: AppTheme.white,
+                      backgroundColor: AppTheme.primaryMaroon,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -496,7 +497,7 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                             width: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
                         : const Text(
@@ -521,7 +522,7 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.white,
+        color: AppTheme.backgroundPeach,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
@@ -531,7 +532,7 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
           ),
         ],
         border: Border.all(
-          color: AppTheme.primaryBlue.withOpacity(0.3),
+          color: AppTheme.primaryMaroon.withOpacity(0.3),
           width: 2,
         ),
       ),
@@ -543,12 +544,12 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryBlue.withOpacity(0.1),
+                  color: AppTheme.primaryMaroon.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.grid_on,
-                  color: AppTheme.primaryBlue,
+                  color: AppTheme.primaryMaroon,
                   size: 24,
                 ),
               ),
@@ -562,7 +563,7 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textDarkCharcoal,
+                        color: Colors.black,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -570,7 +571,7 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                       '${widget.selectedStall!['length']}m × ${widget.selectedStall!['width']}m Stall',
                       style: const TextStyle(
                         fontSize: 14,
-                        color: AppTheme.primaryBlue,
+                        color: AppTheme.primaryMaroon,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -586,11 +587,11 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Stall Type',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppTheme.textMediumGray,
+                        color: Colors.black.withOpacity(0.7),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -599,7 +600,7 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textDarkCharcoal,
+                        color: Colors.black,
                       ),
                     ),
                   ],
@@ -609,11 +610,11 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Position',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppTheme.textMediumGray,
+                        color: Colors.black.withOpacity(0.7),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -622,7 +623,7 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textDarkCharcoal,
+                        color: Colors.black,
                       ),
                     ),
                   ],
@@ -635,10 +636,10 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppTheme.primaryBlue.withOpacity(0.1),
+              color: AppTheme.primaryMaroon.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: AppTheme.primaryBlue.withOpacity(0.3),
+                color: AppTheme.primaryMaroon.withOpacity(0.3),
                 width: 1,
               ),
             ),
@@ -646,15 +647,15 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
               children: [
                 const Icon(
                   Icons.attach_money,
-                  color: AppTheme.primaryBlue,
+                  color: AppTheme.primaryMaroon,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'Price: ',
                   style: TextStyle(
                     fontSize: 14,
-                    color: AppTheme.textMediumGray,
+                    color: Colors.black.withOpacity(0.7),
                   ),
                 ),
                 Text(
@@ -662,7 +663,7 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryBlue,
+                    color: AppTheme.primaryMaroon,
                   ),
                 ),
               ],
@@ -677,8 +678,12 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.white,
+        color: AppTheme.backgroundPeach,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.borderLightGray,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppTheme.black.withOpacity(0.05),
@@ -695,12 +700,12 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryBlue.withOpacity(0.1),
+                  color: AppTheme.primaryMaroon.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
                   Icons.event,
-                  color: AppTheme.primaryBlue,
+                  color: AppTheme.primaryMaroon,
                   size: 24,
                 ),
               ),
@@ -714,15 +719,15 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textDarkCharcoal,
+                        color: Colors.black,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       widget.exhibition['date'] ?? 'Date TBD',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: AppTheme.textMediumGray,
+                        color: Colors.black.withOpacity(0.7),
                       ),
                     ),
                   ],
@@ -733,17 +738,17 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.location_on,
                 size: 16,
-                color: AppTheme.textMediumGray,
+                color: Colors.black.withOpacity(0.7),
               ),
               const SizedBox(width: 4),
               Text(
                 widget.exhibition['location'] ?? 'Location TBD',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
-                  color: AppTheme.textMediumGray,
+                  color: Colors.black.withOpacity(0.7),
                 ),
               ),
               const Spacer(),
@@ -752,7 +757,7 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryBlue,
+                  color: AppTheme.primaryMaroon,
                 ),
               ),
             ],
@@ -768,7 +773,7 @@ class _ApplicationFormScreenState extends State<ApplicationFormScreen> {
       style: const TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.bold,
-        color: AppTheme.textDarkCharcoal,
+        color: Colors.black,
       ),
     );
   }

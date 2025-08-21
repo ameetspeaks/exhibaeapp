@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/routes/app_router.dart';
 import '../../../../core/services/supabase_service.dart';
+import '../../../../core/widgets/profile_picture_display.dart';
 import '../widgets/stall_card.dart';
 
 class ExhibitionDetailsScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
   List<String> _images = [];
   List<Map<String, dynamic>> _stalls = [];
   List<Map<String, dynamic>> _galleryImages = [];
+  List<Map<String, dynamic>> _participatingBrands = []; // Added for participating brands
   Set<int> _selectedStalls = {}; // Track selected stalls
   Set<String> _selectedVariants = {}; // Track selected stall variants
   final SupabaseService _supabaseService = SupabaseService.instance;
@@ -106,37 +108,31 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
     });
 
     try {
-      // Load exhibition images - check if we already have processed image_url
-      List<String> imageUrls = [];
-      if (widget.exhibition['image_url'] != null) {
-        // Use the already processed image_url
-        imageUrls = [widget.exhibition['image_url']];
-      } else {
-        // Process raw images from database
-        final rawImages = widget.exhibition['images'];
-        if (rawImages != null && rawImages is List) {
-          final images = rawImages.where((item) => item != null && item is String).cast<String>().toList();
-          imageUrls = images.map((image) {
-            return _supabaseService.getPublicUrl('exhibition-images', image);
-          }).toList();
-        }
-      }
+      // Load gallery images from gallery_images table
+      final galleryImages = await _supabaseService.getGalleryImages(widget.exhibition['id']);
+      
+      // Extract image URLs from gallery images
+      List<String> imageUrls = galleryImages
+          .map((img) => img['image_url'] as String)
+          .toList();
 
-             // Load stalls
-       final stalls = await _supabaseService.getStallsByExhibition(widget.exhibition['id']);
-       print('Loaded ${stalls.length} stalls for exhibition ${widget.exhibition['id']}');
-       if (stalls.isNotEmpty) {
-         print('First stall data: ${stalls.first}');
-       }
+      // Load stalls
+      final stalls = await _supabaseService.getStallsByExhibition(widget.exhibition['id']);
 
-       // Load gallery images
-       final galleryImages = await _supabaseService.getExhibitionGalleryImages(widget.exhibition['id']);
+      // Load participating brands (brands who have booked stalls)
+      final applications = await _supabaseService.getStallApplicationsByExhibition(widget.exhibition['id']);
+      final participatingBrands = applications
+          .where((app) => app['status'] == 'approved' || app['status'] == 'booked')
+          .map((app) => app['brand'] as Map<String, dynamic>)
+          .where((brand) => brand != null)
+          .toList();
 
       if (mounted) {
         setState(() {
-          _images = List<String>.from(imageUrls);
+          _images = imageUrls;
           _stalls = stalls;
           _galleryImages = galleryImages;
+          _participatingBrands = participatingBrands;
           _isLoading = false;
         });
       }
@@ -172,7 +168,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                   _isLoading
                     ? Center(
                         child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
+                          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryMaroon),
                         ),
                       )
                     : PageView.builder(
@@ -185,16 +181,16 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                         itemBuilder: (context, index) {
                           return Container(
                             decoration: BoxDecoration(
-                              color: AppTheme.primaryBlue.withOpacity(0.1),
+                              color: AppTheme.primaryMaroon.withOpacity(0.1),
                             ),
                             child: ClipRect(
                               child: _images.isEmpty
                                 ? Container(
-                                    color: AppTheme.primaryBlue.withOpacity(0.1),
+                                    color: AppTheme.primaryMaroon.withOpacity(0.1),
                                     child: const Icon(
                                       Icons.event,
                                       size: 64,
-                                      color: AppTheme.primaryBlue,
+                                      color: AppTheme.primaryMaroon,
                                     ),
                                   )
                                 : Image.network(
@@ -202,11 +198,11 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                                     fit: BoxFit.cover,
                                     errorBuilder: (context, error, stackTrace) {
                                       return Container(
-                                        color: AppTheme.primaryBlue.withOpacity(0.1),
+                                        color: AppTheme.primaryMaroon.withOpacity(0.1),
                                         child: const Icon(
                                           Icons.event,
                                           size: 64,
-                                          color: AppTheme.primaryBlue,
+                                          color: AppTheme.primaryMaroon,
                                         ),
                                       );
                                     },
@@ -217,7 +213,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                                           value: loadingProgress.expectedTotalBytes != null
                                             ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
                                             : null,
-                                          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
+                                          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryMaroon),
                                         ),
                                       );
                                     },
@@ -238,8 +234,12 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.white,
+                          color: AppTheme.backgroundPeach,
                           borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppTheme.borderLightGray,
+                            width: 1,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: AppTheme.black.withOpacity(0.1),
@@ -250,7 +250,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                         ),
                         child: Icon(
                           _isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: _isFavorite ? AppTheme.errorRed : AppTheme.primaryBlue,
+                          color: _isFavorite ? AppTheme.errorRed : Colors.black.withOpacity(0.6),
                           size: 20,
                         ),
                       ),
@@ -274,8 +274,8 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                             height: 8,
                             decoration: BoxDecoration(
                               color: _currentImageIndex == index
-                                  ? AppTheme.white
-                                  : AppTheme.white.withOpacity(0.5),
+                                  ? AppTheme.primaryMaroon
+                                  : AppTheme.primaryMaroon.withOpacity(0.5),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -351,7 +351,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
       bottomSheet: Container(
         padding: const EdgeInsets.all(16),
         decoration: const BoxDecoration(
-          color: AppTheme.white,
+          color: AppTheme.backgroundPeach,
           boxShadow: [
             BoxShadow(
               color: AppTheme.black,
@@ -372,7 +372,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                   );
                 } : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _hasSelectedStalls() ? AppTheme.primaryBlue : AppTheme.textMediumGray,
+                  backgroundColor: _hasSelectedStalls() ? AppTheme.primaryMaroon : AppTheme.textMediumGray,
                   foregroundColor: AppTheme.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(
@@ -391,17 +391,10 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
             const SizedBox(width: 12),
             IconButton(
               onPressed: () {
-                // TODO: Save for later
-              },
-              icon: const Icon(Icons.bookmark_border),
-              color: AppTheme.primaryBlue,
-            ),
-            IconButton(
-              onPressed: () {
                 // TODO: Share exhibition
               },
               icon: const Icon(Icons.share),
-              color: AppTheme.primaryBlue,
+              color: AppTheme.primaryMaroon,
             ),
           ],
         ),
@@ -413,8 +406,12 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.white,
+        color: AppTheme.backgroundPeach,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.borderLightGray,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppTheme.black.withOpacity(0.05),
@@ -431,57 +428,61 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: AppTheme.textDarkCharcoal,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 12),
           
-          // Date & Time
-          Row(
-            children: [
-              const Icon(
-                Icons.calendar_today,
-                color: AppTheme.textMediumGray,
-                size: 20,
+          // Date Information
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryMaroon.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppTheme.primaryMaroon.withOpacity(0.2),
+                width: 1,
               ),
-              const SizedBox(width: 8),
-              Text(
-                widget.exhibition['date'] ?? 'Date not specified',
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: AppTheme.textDarkCharcoal,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.event,
+                  color: AppTheme.primaryMaroon,
+                  size: 20,
                 ),
-              ),
-            ],
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _getExhibitionDateRange(),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryMaroon,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           
           // Location
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.location_on,
-                color: AppTheme.textMediumGray,
+                color: Colors.black.withOpacity(0.7),
                 size: 20,
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  widget.exhibition['location'] ?? 'Location not specified',
+                  _getCompleteAddress(),
                   style: const TextStyle(
                     fontSize: 16,
-                    color: AppTheme.textDarkCharcoal,
-                  ),
-                ),
-              ),
-              Flexible(
-                child: TextButton(
-                  onPressed: () {
-                    // TODO: Open map
-                  },
-                  child: const Text(
-                    'Get Directions',
-                    style: TextStyle(color: AppTheme.primaryBlue),
+                    color: Colors.black,
                   ),
                 ),
               ),
@@ -497,7 +498,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryBlue.withOpacity(0.1),
+                    color: AppTheme.primaryMaroon.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -505,7 +506,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                         ? (widget.exhibition['category']['name'] ?? 'Uncategorized')
                         : (widget.exhibition['category']?.toString() ?? 'Uncategorized'),
                     style: const TextStyle(
-                      color: AppTheme.primaryBlue,
+                      color: AppTheme.primaryMaroon,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -521,8 +522,12 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.white,
+        color: AppTheme.backgroundPeach,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.borderLightGray,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppTheme.black.withOpacity(0.05),
@@ -533,14 +538,38 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
-            child: const Icon(
-              Icons.business,
-              color: AppTheme.primaryBlue,
-              size: 24,
-            ),
+          // Organizer Profile Picture and Company Logo
+          Row(
+            children: [
+              ProfilePictureDisplay(
+                avatarUrl: _getOrganizerAvatarUrl(),
+                size: 48,
+                backgroundColor: AppTheme.primaryMaroon.withOpacity(0.1),
+                iconColor: AppTheme.primaryMaroon,
+              ),
+              const SizedBox(width: 8),
+              // Company Logo (if available)
+              if (_getOrganizerCompanyLogoUrl() != null)
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: AppTheme.secondaryWarm.withOpacity(0.1),
+                  child: ClipOval(
+                    child: Image.network(
+                      _getOrganizerCompanyLogoUrl()!,
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.business,
+                          size: 24,
+                          color: Colors.black,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+            ],
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -555,7 +584,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.textDarkCharcoal,
+                          color: Colors.black,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -563,59 +592,20 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                     const SizedBox(width: 8),
                     const Icon(
                       Icons.verified,
-                      color: AppTheme.primaryBlue,
+                      color: AppTheme.primaryMaroon,
                       size: 16,
                     ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.star,
-                      color: AppTheme.secondaryGold,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 2),
-                    const Text(
-                      '4.5',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                    Flexible(
-                      child: Text(
-                        '(50+ reviews)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.textMediumGray,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Organizer',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.black.withOpacity(0.7),
+                  ),
                 ),
               ],
-            ),
-          ),
-          SizedBox(
-            child: ElevatedButton.icon(
-              onPressed: () {
-                // TODO: Open chat with organizer
-              },
-              icon: const Icon(Icons.chat, size: 16),
-              label: const Text('Message', style: TextStyle(fontSize: 12)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryBlue,
-                foregroundColor: AppTheme.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                minimumSize: const Size(0, 32),
-              ),
             ),
           ),
         ],
@@ -624,62 +614,51 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
   }
 
   Widget _buildDescriptionSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return SizedBox(
+      width: double.infinity,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.backgroundPeach,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppTheme.borderLightGray,
+            width: 1,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Description',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textDarkCharcoal,
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            widget.exhibition['description'] ?? 'No description available for this exhibition.',
-            style: const TextStyle(
-              fontSize: 16,
-              color: AppTheme.textDarkCharcoal,
-              height: 1.5,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Description',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Highlights section removed as requested
-          
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(
-                Icons.people,
-                color: AppTheme.textMediumGray,
-                size: 20,
+            const SizedBox(height: 12),
+            Text(
+              widget.exhibition['description'] ?? 'No description available for this exhibition.',
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.black,
+                height: 1.5,
               ),
-              const SizedBox(width: 8),
-              Text(
-                'Expected: 1,000+ visitors',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.textMediumGray,
-                ),
-              ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 16),
+            
+            // Highlights section removed as requested
+            
+          ],
+        ),
       ),
     );
   }
@@ -786,8 +765,12 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
         return Container(
           padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
           decoration: BoxDecoration(
-            color: AppTheme.white,
+            color: AppTheme.backgroundPeach,
             borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppTheme.borderLightGray,
+              width: 1,
+            ),
             boxShadow: [
               BoxShadow(
                 color: AppTheme.black.withOpacity(0.05),
@@ -804,19 +787,19 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                 style: TextStyle(
                   fontSize: isSmallScreen ? 16 : (isMediumScreen ? 17 : 18),
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textDarkCharcoal,
+                  color: Colors.black,
                 ),
               ),
               SizedBox(height: isSmallScreen ? 8 : 12),
               _galleryImages.isEmpty
                 ? Center(
-                    child: Text(
-                      'No gallery images available for this exhibition.',
-                      style: TextStyle(
-                        fontSize: isSmallScreen ? 14 : 16,
-                        color: AppTheme.textMediumGray,
-                      ),
+                                      child: Text(
+                    'No gallery images available for this exhibition.',
+                    style: TextStyle(
+                      fontSize: isSmallScreen ? 14 : 16,
+                      color: Colors.black.withOpacity(0.7),
                     ),
+                  ),
                   )
                 : GridView.builder(
                     shrinkWrap: true,
@@ -851,8 +834,12 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
         return Container(
           padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
           decoration: BoxDecoration(
-            color: AppTheme.white,
+            color: AppTheme.backgroundPeach,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppTheme.borderLightGray,
+              width: 1,
+            ),
             boxShadow: [
               BoxShadow(
                 color: AppTheme.black.withOpacity(0.08),
@@ -869,12 +856,12 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                   Container(
                     padding: EdgeInsets.all(isSmallScreen ? 6 : 8),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withOpacity(0.1),
+                      color: AppTheme.primaryMaroon.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       Icons.grid_on,
-                      color: AppTheme.primaryBlue,
+                      color: AppTheme.primaryMaroon,
                       size: isSmallScreen ? 20 : 24,
                     ),
                   ),
@@ -888,7 +875,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                           style: TextStyle(
                             fontSize: isSmallScreen ? 18 : (isMediumScreen ? 20 : 22),
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.textDarkCharcoal,
+                            color: Colors.black,
                           ),
                         ),
                         SizedBox(height: isSmallScreen ? 2 : 4),
@@ -896,7 +883,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                           'Choose from ${_stalls.length} different stall types',
                           style: TextStyle(
                             fontSize: isSmallScreen ? 12 : 14,
-                            color: AppTheme.textMediumGray,
+                            color: Colors.black.withOpacity(0.7),
                           ),
                         ),
                       ],
@@ -910,7 +897,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                     child: Padding(
                       padding: EdgeInsets.all(isSmallScreen ? 24 : 40),
                       child: CircularProgressIndicator(
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryBlue),
+                        valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryMaroon),
                         strokeWidth: isSmallScreen ? 2 : 3,
                       ),
                     ),
@@ -919,8 +906,12 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                   ? Container(
                       padding: EdgeInsets.all(isSmallScreen ? 24 : 40),
                       decoration: BoxDecoration(
-                        color: AppTheme.backgroundLightGray,
+                        color: AppTheme.secondaryWarm.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppTheme.borderLightGray,
+                          width: 1,
+                        ),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -928,7 +919,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                           Icon(
                             Icons.grid_off,
                             size: isSmallScreen ? 48 : 64,
-                            color: AppTheme.textMediumGray,
+                            color: Colors.black.withOpacity(0.6),
                           ),
                           SizedBox(height: isSmallScreen ? 12 : 16),
                           Text(
@@ -936,7 +927,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                             style: TextStyle(
                               fontSize: isSmallScreen ? 16 : 18,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.textDarkCharcoal,
+                              color: Colors.black,
                             ),
                           ),
                           SizedBox(height: isSmallScreen ? 6 : 8),
@@ -944,7 +935,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                             'Stalls will be added soon. Check back later!',
                             style: TextStyle(
                               fontSize: isSmallScreen ? 12 : 14,
-                              color: AppTheme.textMediumGray,
+                              color: Colors.black.withOpacity(0.7),
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -962,7 +953,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                            physics: const NeverScrollableScrollPhysics(),
                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                              crossAxisCount: crossAxisCount,
-                             childAspectRatio: 0.75, // Better aspect ratio for the new card design
+                             childAspectRatio: 0.65, // Reduced from 0.75 to prevent overflow
                              crossAxisSpacing: spacing,
                              mainAxisSpacing: spacing,
                            ),
@@ -1011,8 +1002,12 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.white,
+        color: AppTheme.backgroundPeach,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.borderLightGray,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppTheme.black.withOpacity(0.05),
@@ -1032,14 +1027,14 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textDarkCharcoal,
+                  color: Colors.black,
                 ),
               ),
               Text(
                 '${_selectedVariants.length} variants selected',
                 style: TextStyle(
                   fontSize: 14,
-                  color: AppTheme.textMediumGray,
+                  color: Colors.black.withOpacity(0.7),
                 ),
               ),
             ],
@@ -1051,7 +1046,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                   'No stall variants selected yet.',
                   style: TextStyle(
                     fontSize: 16,
-                    color: AppTheme.textMediumGray,
+                    color: Colors.black.withOpacity(0.7),
                   ),
                 ),
               )
@@ -1080,11 +1075,11 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                       children: [
                         CircleAvatar(
                           radius: 20,
-                          backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
+                          backgroundColor: AppTheme.primaryMaroon.withOpacity(0.1),
                           child: Text(
                             'V${index + 1}',
                             style: const TextStyle(
-                              color: AppTheme.primaryBlue,
+                              color: AppTheme.primaryMaroon,
                               fontWeight: FontWeight.bold,
                               fontSize: 10,
                             ),
@@ -1100,7 +1095,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: AppTheme.textDarkCharcoal,
+                                  color: Colors.black,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -1108,7 +1103,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                                 '₹${firstStall['price']} - ${availableCount}/${totalCount} available',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: AppTheme.textMediumGray,
+                                  color: Colors.black.withOpacity(0.7),
                                 ),
                               ),
                               if (_getStallAmenities(firstStall).isNotEmpty) ...[
@@ -1117,7 +1112,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                                   _getStallAmenities(firstStall).take(3).join(', '),
                                   style: TextStyle(
                                     fontSize: 10,
-                                    color: AppTheme.textMediumGray,
+                                    color: Colors.black.withOpacity(0.7),
                                   ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -1150,8 +1145,12 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.white,
+        color: AppTheme.backgroundPeach,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.borderLightGray,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppTheme.black.withOpacity(0.05),
@@ -1171,70 +1170,115 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.textDarkCharcoal,
+                  color: Colors.black,
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  // TODO: Navigate to full brand list
-                },
-                child: const Text('See All'),
+              Text(
+                '${_participatingBrands.length} brands',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black.withOpacity(0.7),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 80,
-            child: _stalls.isEmpty
-              ? Center(
-                  child: Text(
-                    'No participating brands yet',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppTheme.textMediumGray,
-                    ),
-                  ),
-                )
-              : ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _stalls.length,
-                  itemBuilder: (context, index) {
-                    final stall = _stalls[index];
-                    return Container(
-                      margin: const EdgeInsets.only(right: 12),
-                      child: Column(
-                        children: [
-                          CircleAvatar(
-                            radius: 25,
-                            backgroundColor: AppTheme.primaryBlue.withOpacity(0.1),
-                            child: Text(
-                              'S${index + 1}',
-                              style: const TextStyle(
-                                color: AppTheme.primaryBlue,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          SizedBox(
-                            width: 50,
-                            child: Text(
-                              'Stall ${index + 1}',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: AppTheme.textDarkCharcoal,
-                              ),
-                              textAlign: TextAlign.center,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-          ),
+                     const SizedBox(height: 12),
+           _participatingBrands.isEmpty
+             ? Container(
+                 height: 80,
+                 child: Center(
+                   child: Text(
+                     'No participating brands yet',
+                     style: TextStyle(
+                       fontSize: 14,
+                       color: Colors.black.withOpacity(0.7),
+                     ),
+                   ),
+                 ),
+               )
+             : Container(
+                 height: 120, // Increased height to accommodate both images and brand names
+                 child: ListView.builder(
+                   scrollDirection: Axis.horizontal,
+                   itemCount: _participatingBrands.length,
+                   itemBuilder: (context, index) {
+                     final brand = _participatingBrands[index];
+                     final brandName = brand['company_name'] ?? brand['full_name'] ?? 'Brand ${index + 1}';
+                     final brandLogo = brand['company_logo_url'] ?? brand['logo_url'];
+                     final brandAvatar = brand['avatar_url'];
+                     
+                     return Container(
+                       margin: const EdgeInsets.only(right: 16),
+                       child: Column(
+                         mainAxisSize: MainAxisSize.min,
+                         children: [
+                           // Profile Picture and Company Logo Stack
+                           Stack(
+                             children: [
+                               // Profile Picture (background)
+                               ProfilePictureDisplay(
+                                 avatarUrl: brandAvatar,
+                                 size: 50,
+                                 backgroundColor: AppTheme.primaryMaroon.withOpacity(0.1),
+                                 iconColor: AppTheme.primaryMaroon,
+                               ),
+                               // Company Logo (overlay, if available)
+                               if (brandLogo != null)
+                                 Positioned(
+                                   bottom: 0,
+                                   right: 0,
+                                   child: Container(
+                                     width: 25,
+                                     height: 25,
+                                     decoration: BoxDecoration(
+                                       color: AppTheme.white,
+                                       borderRadius: BorderRadius.circular(12.5),
+                                       border: Border.all(
+                                         color: AppTheme.white,
+                                         width: 2,
+                                       ),
+                                     ),
+                                     child: ClipRRect(
+                                       borderRadius: BorderRadius.circular(12.5),
+                                       child: Image.network(
+                                         brandLogo,
+                                         width: 25,
+                                         height: 25,
+                                         fit: BoxFit.cover,
+                                         errorBuilder: (context, error, stackTrace) {
+                                           return const Icon(
+                                             Icons.business,
+                                             size: 15,
+                                             color: Colors.black,
+                                           );
+                                         },
+                                       ),
+                                     ),
+                                   ),
+                                 ),
+                             ],
+                           ),
+                           const SizedBox(height: 8),
+                           SizedBox(
+                             width: 70,
+                             child: Text(
+                               brandName,
+                               style: const TextStyle(
+                                 fontSize: 10,
+                                 color: Colors.black,
+                                 fontWeight: FontWeight.w500,
+                               ),
+                               textAlign: TextAlign.center,
+                               overflow: TextOverflow.ellipsis,
+                               maxLines: 2,
+                             ),
+                           ),
+                         ],
+                       ),
+                     );
+                   },
+                 ),
+               ),
         ],
       ),
     );
@@ -1244,8 +1288,12 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.white,
+        color: AppTheme.backgroundPeach,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.borderLightGray,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppTheme.black.withOpacity(0.05),
@@ -1262,7 +1310,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppTheme.textDarkCharcoal,
+              color: Colors.black,
             ),
           ),
           const SizedBox(height: 12),
@@ -1272,8 +1320,12 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
             Container(
               height: 120,
               decoration: BoxDecoration(
-                color: AppTheme.backgroundLightGray,
+                color: AppTheme.secondaryWarm.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.borderLightGray,
+                  width: 1,
+                ),
               ),
               child: Center(
                 child: Column(
@@ -1282,13 +1334,13 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                     Icon(
                       Icons.map,
                       size: 32,
-                      color: AppTheme.textMediumGray,
+                      color: AppTheme.primaryMaroon,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Floor Plan',
                       style: TextStyle(
-                        color: AppTheme.textMediumGray,
+                        color: Colors.black,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1301,8 +1353,12 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
             Container(
               height: 120,
               decoration: BoxDecoration(
-                color: AppTheme.backgroundLightGray,
+                color: AppTheme.secondaryWarm.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.borderLightGray,
+                  width: 1,
+                ),
               ),
               child: Center(
                 child: Column(
@@ -1311,13 +1367,13 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
                     Icon(
                       Icons.map_outlined,
                       size: 32,
-                      color: AppTheme.textMediumGray,
+                      color: AppTheme.primaryMaroon,
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'No Floor Plan Available',
                       style: TextStyle(
-                        color: AppTheme.textMediumGray,
+                        color: Colors.black,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -1349,7 +1405,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textMediumGray,
+                color: Colors.black,
               ),
             ),
             const SizedBox(height: 8),
@@ -1357,7 +1413,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
               'No amenities information available',
               style: TextStyle(
                 fontSize: 14,
-                color: AppTheme.textMediumGray,
+                color: Colors.black.withOpacity(0.7),
               ),
             ),
           ],
@@ -1372,7 +1428,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
       children: [
         Icon(
           icon,
-          color: AppTheme.primaryBlue,
+          color: AppTheme.primaryMaroon,
           size: 20,
         ),
         const SizedBox(width: 4),
@@ -1380,7 +1436,7 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
           text,
           style: const TextStyle(
             fontSize: 14,
-            color: AppTheme.textDarkCharcoal,
+            color: Colors.black,
           ),
         ),
       ],
@@ -1395,9 +1451,164 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
     return 'Organiser';
   }
 
+  String? _getOrganizerAvatarUrl() {
+    final organiser = widget.exhibition['organiser'];
+    if (organiser is Map<String, dynamic>) {
+      return organiser['avatar_url'];
+    }
+    return null;
+  }
+
+  String? _getOrganizerCompanyLogoUrl() {
+    final organiser = widget.exhibition['organiser'];
+    if (organiser is Map<String, dynamic>) {
+      return organiser['company_logo_url'];
+    }
+    return null;
+  }
+
+  String _getExhibitionAddress() {
+    // Try to get the best available address information
+    final venueName = widget.exhibition['venue_name'];
+    final venueAddress = widget.exhibition['venue_address'];
+    final location = widget.exhibition['location'];
+    
+    // If we have both venue name and address, combine them
+    if (venueName != null && venueAddress != null) {
+      return '$venueName, $venueAddress';
+    }
+    
+    // If we have venue name only
+    if (venueName != null) {
+      return venueName.toString();
+    }
+    
+    // If we have venue address only
+    if (venueAddress != null) {
+      return venueAddress.toString();
+    }
+    
+    // If we have location field
+    if (location != null) {
+      return location.toString();
+    }
+    
+    // Fallback
+    return 'Location not specified';
+  }
+
+  String _getExhibitionDateRange() {
+    // Try to get start and end dates
+    final startDate = widget.exhibition['start_date'];
+    final endDate = widget.exhibition['end_date'];
+    final date = widget.exhibition['date'];
+    
+    // If we have both start and end dates
+    if (startDate != null && endDate != null) {
+      return 'From: ${_formatDate(startDate)} - To: ${_formatDate(endDate)}';
+    }
+    
+    // If we have start date only
+    if (startDate != null) {
+      return 'From: ${_formatDate(startDate)}';
+    }
+    
+    // If we have end date only
+    if (endDate != null) {
+      return 'To: ${_formatDate(endDate)}';
+    }
+    
+    // If we have single date field
+    if (date != null) {
+      return _formatDate(date);
+    }
+    
+    // Fallback
+    return 'Date not specified';
+  }
+
+  String _formatDate(dynamic dateValue) {
+    if (dateValue == null) return 'Date not specified';
+    
+    try {
+      // Handle different date formats
+      if (dateValue is String) {
+        // Try to parse ISO date string
+        final date = DateTime.tryParse(dateValue);
+        if (date != null) {
+          return '${date.day}/${date.month}/${date.year}';
+        }
+        // If it's already formatted, return as is
+        return dateValue;
+      } else if (dateValue is DateTime) {
+        return '${dateValue.day}/${dateValue.month}/${dateValue.year}';
+      }
+    } catch (e) {
+      print('Error formatting date: $e');
+    }
+    
+    return dateValue.toString();
+  }
+
+  String _getCompleteAddress() {
+    // Try to get all available address information
+    final venueName = widget.exhibition['venue_name'];
+    final venueAddress = widget.exhibition['venue_address'];
+    final location = widget.exhibition['location'];
+    final city = widget.exhibition['city'];
+    final state = widget.exhibition['state'];
+    final country = widget.exhibition['country'];
+    final postalCode = widget.exhibition['postal_code'];
+    
+    List<String> addressParts = [];
+    
+    // Add venue name if available
+    if (venueName != null && venueName.toString().isNotEmpty) {
+      addressParts.add(venueName.toString());
+    }
+    
+    // Add venue address if available
+    if (venueAddress != null && venueAddress.toString().isNotEmpty) {
+      addressParts.add(venueAddress.toString());
+    }
+    
+    // Add location if available
+    if (location != null && location.toString().isNotEmpty) {
+      addressParts.add(location.toString());
+    }
+    
+    // Add city if available
+    if (city != null && city.toString().isNotEmpty) {
+      addressParts.add(city.toString());
+    }
+    
+    // Add state if available
+    if (state != null && state.toString().isNotEmpty) {
+      addressParts.add(state.toString());
+    }
+    
+    // Add postal code if available
+    if (postalCode != null && postalCode.toString().isNotEmpty) {
+      addressParts.add(postalCode.toString());
+    }
+    
+    // Add country if available
+    if (country != null && country.toString().isNotEmpty) {
+      addressParts.add(country.toString());
+    }
+    
+    // Combine all parts
+    if (addressParts.isNotEmpty) {
+      return addressParts.join(', ');
+    }
+    
+    // Fallback to basic address
+    return _getExhibitionAddress();
+  }
+
   bool _hasParticipatingBrands() {
-    // Check if we have any stalls or participating brands data
-    return _stalls.isNotEmpty || (widget.exhibition['participating_brands'] != null && widget.exhibition['participating_brands'].isNotEmpty);
+    // Check if we have any participating brands who have booked stalls
+    return _participatingBrands.isNotEmpty;
   }
 
   bool _hasVenueInformation() {
@@ -1502,6 +1713,50 @@ class _ExhibitionDetailsScreenState extends State<ExhibitionDetailsScreen> {
     }
     return 'm';
   }
+
+  Widget _buildBannerFallback() {
+    return Container(
+      width: double.infinity,
+      height: 80,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryMaroon.withOpacity(0.1),
+            AppTheme.primaryMaroon.withOpacity(0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppTheme.primaryMaroon.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 16),
+          Icon(
+            Icons.event,
+            color: AppTheme.primaryMaroon,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _getExhibitionDateRange(),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.primaryMaroon,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+        ],
+      ),
+    );
+  }
 }
 
 // Gallery Image Item with hover effects
@@ -1550,11 +1805,11 @@ class _GalleryImageItemState extends State<_GalleryImageItem> {
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
-                    color: AppTheme.primaryBlue.withOpacity(0.1),
-                    child: const Icon(
+                    color: AppTheme.primaryMaroon.withOpacity(0.1),
+                    child: Icon(
                       Icons.image_not_supported,
                       size: 40,
-                      color: AppTheme.textMediumGray,
+                      color: Colors.black.withOpacity(0.6),
                     ),
                   );
                 },

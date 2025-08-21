@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../theme/app_theme.dart';
 
 class AppLogo extends StatelessWidget {
@@ -22,26 +21,32 @@ class AppLogo extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: backgroundColor ?? AppTheme.primaryBlue,
-        borderRadius: BorderRadius.circular(size * 0.25),
+        color: backgroundColor ?? AppTheme.white,
+        shape: BoxShape.circle,
         boxShadow: showShadow
             ? [
                 BoxShadow(
-                  color: AppTheme.black.withOpacity(0.1),
+                  color: AppTheme.white.withOpacity(0.3),
                   blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  spreadRadius: 5,
                 ),
               ]
             : null,
       ),
-      child: Padding(
-        padding: EdgeInsets.all(size * 0.2),
-        child: SvgPicture.asset(
-          'assets/images/logo.svg',
+      child: Center(
+        child: Image.asset(
+          'assets/images/exhibae-icon.png',
+          height: size * 0.8,
+          width: size * 0.8,
           fit: BoxFit.contain,
-          colorFilter: logoColor != null
-              ? ColorFilter.mode(logoColor!, BlendMode.srcIn)
-              : null,
+          errorBuilder: (context, error, stackTrace) {
+            print('Error loading logo: $error');
+            return Icon(
+              Icons.event,
+              color: logoColor ?? AppTheme.gradientBlack,
+              size: size * 0.5,
+            );
+          },
         ),
       ),
     );
