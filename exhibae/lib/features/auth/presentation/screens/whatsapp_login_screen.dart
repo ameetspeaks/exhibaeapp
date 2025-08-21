@@ -18,7 +18,6 @@ class _WhatsAppLoginScreenState extends State<WhatsAppLoginScreen> {
   
   bool _isLoading = false;
   bool _isCheckingWhatsApp = false;
-  String _selectedRole = 'organizer';
   String _formattedPhone = '';
   bool _isWhatsAppAvailable = false;
 
@@ -75,30 +74,53 @@ class _WhatsAppLoginScreenState extends State<WhatsAppLoginScreen> {
       // Format phone number
       final formattedPhone = await _formatPhoneNumber(_phoneController.text);
       
-      // Send WhatsApp OTP
-      final otpSent = await _supabaseService.sendWhatsAppOtp(formattedPhone);
+      // Check if user exists with this phone number
+      final existingUser = await _supabaseService.findUserByPhone(formattedPhone);
       
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+      if (existingUser != null && existingUser['phone_verified'] == true) {
+        // User exists and phone is verified - send login OTP
+        final otpResult = await _supabaseService.sendWhatsAppOtp(
+          phoneNumber: formattedPhone,
+          verificationType: 'whatsapp_login',
+        );
+        
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
 
-        if (otpSent) {
-          // Navigate to OTP verification screen
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => WhatsAppOtpVerificationScreen(
-                phoneNumber: formattedPhone,
-                role: _selectedRole,
+          if (otpResult['success']) {
+            // Navigate to OTP verification screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => WhatsAppOtpVerificationScreen(
+                  phoneNumber: formattedPhone,
+                  verificationType: 'whatsapp_login',
+                ),
               ),
-            ),
-          );
-        } else {
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(otpResult['message']),
+                backgroundColor: AppTheme.errorRed,
+              ),
+            );
+          }
+        }
+      } else {
+        // User doesn't exist or phone not verified
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Failed to send WhatsApp OTP. Please try again.'),
+              content: Text('No verified account found with this phone number. Please sign up with email first and verify your phone number.'),
               backgroundColor: AppTheme.errorRed,
+              duration: Duration(seconds: 5),
             ),
           );
         }
@@ -198,48 +220,27 @@ class _WhatsAppLoginScreenState extends State<WhatsAppLoginScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        const Text(
-                          'Login with WhatsApp',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Enter your phone number to receive a verification code',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.black.withOpacity(0.7),
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
+                                                 const Text(
+                           'Login with WhatsApp',
+                           style: TextStyle(
+                             fontSize: 24,
+                             fontWeight: FontWeight.bold,
+                             color: Colors.black,
+                           ),
+                         ),
+                         const SizedBox(height: 8),
+                         Text(
+                           'Enter your verified phone number to login',
+                           style: TextStyle(
+                             fontSize: 16,
+                             color: Colors.black.withOpacity(0.7),
+                           ),
+                           textAlign: TextAlign.center,
+                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 40),
-
-                  // Role Selection
-                  Text(
-                    'I am a:',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(child: _buildRoleButton('Organizer', 'organizer')),
-                      const SizedBox(width: 12),
-                      Expanded(child: _buildRoleButton('Brand', 'brand')),
-                      const SizedBox(width: 12),
-                      Expanded(child: _buildRoleButton('Shopper', 'shopper')),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
+                                     const SizedBox(height: 40),
 
                   // Phone Number Input
                   Text(
@@ -366,34 +367,5 @@ class _WhatsAppLoginScreenState extends State<WhatsAppLoginScreen> {
     );
   }
 
-  Widget _buildRoleButton(String label, String role) {
-    final isSelected = _selectedRole == role;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedRole = role;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryMaroon : Colors.white.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryMaroon : Colors.black,
-            width: 1,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : Colors.black,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
+
 }

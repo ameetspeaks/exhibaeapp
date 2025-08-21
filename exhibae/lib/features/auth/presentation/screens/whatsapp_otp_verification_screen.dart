@@ -5,12 +5,12 @@ import '../../../../core/services/supabase_service.dart';
 
 class WhatsAppOtpVerificationScreen extends StatefulWidget {
   final String phoneNumber;
-  final String role;
+  final String verificationType;
 
   const WhatsAppOtpVerificationScreen({
     super.key,
     required this.phoneNumber,
-    required this.role,
+    required this.verificationType,
   });
 
   @override
@@ -94,32 +94,69 @@ class _WhatsAppOtpVerificationScreenState extends State<WhatsAppOtpVerificationS
     });
 
     try {
-      // Verify WhatsApp OTP and sign in
-      final response = await _supabaseService.signInWithWhatsApp(
-        phoneNumber: widget.phoneNumber,
-        otp: _otpCode,
-        role: widget.role,
-      );
+      Map<String, dynamic> verificationResult;
+      
+      if (widget.verificationType == 'whatsapp_login') {
+        // WhatsApp login for existing users
+        final response = await _supabaseService.signInWithWhatsApp(
+          phoneNumber: widget.phoneNumber,
+          otp: _otpCode,
+        );
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
 
-        if (response.user != null) {
-          // Successfully authenticated
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/home',
-            (route) => false,
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Invalid OTP. Please try again.'),
-              backgroundColor: AppTheme.errorRed,
-            ),
-          );
+          if (response.user != null) {
+            // Successfully authenticated
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              '/home',
+              (route) => false,
+            );
+            return;
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Invalid OTP. Please try again.'),
+                backgroundColor: AppTheme.errorRed,
+              ),
+            );
+            return;
+          }
+        }
+      } else {
+        // Phone verification for existing users
+        verificationResult = await _supabaseService.verifyWhatsAppOtp(
+          phoneNumber: widget.phoneNumber,
+          otp: _otpCode,
+          verificationType: widget.verificationType,
+        );
+
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+
+          if (verificationResult['success']) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(verificationResult['message']),
+                backgroundColor: const Color(0xFF25D366),
+              ),
+            );
+            
+            // Navigate back to previous screen
+            Navigator.pop(context, true);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(verificationResult['message']),
+                backgroundColor: AppTheme.errorRed,
+              ),
+            );
+          }
         }
       }
     } catch (e) {
@@ -143,7 +180,10 @@ class _WhatsAppOtpVerificationScreenState extends State<WhatsAppOtpVerificationS
     });
 
     try {
-      final otpSent = await _supabaseService.sendWhatsAppOtp(widget.phoneNumber);
+      final otpResult = await _supabaseService.sendWhatsAppOtp(
+        phoneNumber: widget.phoneNumber,
+        verificationType: widget.verificationType,
+      );
       
       if (mounted) {
         setState(() {
@@ -151,18 +191,18 @@ class _WhatsAppOtpVerificationScreenState extends State<WhatsAppOtpVerificationS
           _resendTimer = 30;
         });
 
-        if (otpSent) {
+        if (otpResult['success']) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('OTP sent successfully!'),
-              backgroundColor: Color(0xFF25D366),
+            SnackBar(
+              content: Text(otpResult['message']),
+              backgroundColor: const Color(0xFF25D366),
             ),
           );
           _startResendTimer();
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to send OTP. Please try again.'),
+            SnackBar(
+              content: Text(otpResult['message']),
               backgroundColor: AppTheme.errorRed,
             ),
           );

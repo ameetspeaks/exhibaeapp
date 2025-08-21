@@ -42,6 +42,7 @@ import '../../features/shopper/presentation/screens/edit_profile_screen.dart';
 import '../../features/organizer/presentation/screens/edit_profile_screen.dart';
 import '../../features/auth/presentation/screens/whatsapp_login_screen.dart';
 import '../../features/auth/presentation/screens/whatsapp_otp_verification_screen.dart';
+import '../../features/auth/presentation/screens/phone_verification_screen.dart';
 
 class AppRouter {
   static const String splash = '/splash';
@@ -87,6 +88,7 @@ class AppRouter {
   static const String organizerEditProfile = '/organizer-edit-profile';
   static const String whatsappLogin = '/whatsapp-login';
   static const String whatsappOtpVerification = '/whatsapp-otp-verification';
+  static const String phoneVerification = '/phone-verification';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -314,8 +316,12 @@ class AppRouter {
         return MaterialPageRoute(
           builder: (_) => WhatsAppOtpVerificationScreen(
             phoneNumber: args['phoneNumber'] as String,
-            role: args['role'] as String,
+            verificationType: args['verificationType'] as String,
           ),
+        );
+      case phoneVerification:
+        return MaterialPageRoute(
+          builder: (_) => const PhoneVerificationScreen(),
         );
       default:
         return MaterialPageRoute(
