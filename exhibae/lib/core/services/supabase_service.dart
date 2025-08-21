@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/supabase_config.dart';
+import 'whatsapp_auth_service.dart';
 
 class SupabaseService {
   static SupabaseService? _instance;
@@ -149,6 +150,133 @@ class SupabaseService {
   User? get currentUser => client.auth.currentUser;
 
   Stream<AuthState> get authStateChanges => client.auth.onAuthStateChange;
+
+  // WhatsApp Authentication methods
+  Future<bool> sendWhatsAppOtp(String phoneNumber) async {
+    return await WhatsAppAuthService.instance.sendWhatsAppOtp(phoneNumber);
+  }
+
+  Future<bool> verifyWhatsAppOtp(String phoneNumber, String otp) async {
+    return await WhatsAppAuthService.instance.verifyWhatsAppOtp(phoneNumber, otp);
+  }
+
+  Future<AuthResponse> signInWithWhatsApp({
+    required String phoneNumber,
+    required String otp,
+    required String role,
+  }) async {
+    // First verify the WhatsApp OTP
+    final isVerified = await WhatsAppAuthService.instance.verifyWhatsAppOtp(phoneNumber, otp);
+    
+    if (!isVerified) {
+      throw Exception('Invalid WhatsApp OTP');
+    }
+
+    // Check if user exists in Supabase
+    final existingUser = await _findUserByPhone(phoneNumber);
+    
+    if (existingUser != null) {
+      // User exists, sign them in
+      return await _signInExistingWhatsAppUser(existingUser, role);
+    } else {
+      // User doesn't exist, create new account
+      return await _createNewWhatsAppUser(phoneNumber, role);
+    }
+  }
+
+  Future<User?> _findUserByPhone(String phoneNumber) async {
+    try {
+      // Search for user by phone number in profiles table
+      final response = await client
+          .from('profiles')
+          .select('id')
+          .eq('phone', phoneNumber)
+          .single();
+      
+      if (response != null) {
+        // Get user from auth.users table
+        final user = await client.auth.admin.getUserById(response['id']);
+        return user;
+      }
+      return null;
+    } catch (e) {
+      // User not found
+      return null;
+    }
+  }
+
+  Future<AuthResponse> _signInExistingWhatsAppUser(User user, String role) async {
+    // Update user metadata with role and auth provider
+    await client.auth.updateUser(
+      UserAttributes(
+        data: {
+          'role': role,
+          'auth_provider': 'whatsapp',
+        },
+      ),
+    );
+
+    // Return a mock AuthResponse since we can't directly sign in without password
+    // In production, you might want to implement a custom authentication flow
+    return AuthResponse(
+      user: user,
+      session: null,
+    );
+  }
+
+  Future<AuthResponse> _createNewWhatsAppUser(String phoneNumber, String role) async {
+    // Create a temporary email for the user (WhatsApp users might not have email)
+    final tempEmail = 'whatsapp_${phoneNumber.replaceAll(RegExp(r'[^0-9]'), '')}@exhibae.app';
+    
+    // Generate a secure random password
+    final password = _generateSecurePassword();
+    
+    // Sign up the user
+    final response = await client.auth.signUp(
+      email: tempEmail,
+      password: password,
+      data: {
+        'phone': phoneNumber,
+        'role': role,
+        'auth_provider': 'whatsapp',
+        'email_verified': false,
+      },
+    );
+
+    if (response.user != null) {
+      // Create profile entry
+      await _createUserProfile(response.user!, phoneNumber, role);
+    }
+
+    return response;
+  }
+
+  String _generateSecurePassword() {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#\$%^&*';
+    final random = DateTime.now().millisecondsSinceEpoch;
+    return String.fromCharCodes(
+      Iterable.generate(16, (_) => chars.codeUnitAt(random % chars.length))
+    );
+  }
+
+  Future<void> _createUserProfile(User user, String phoneNumber, String role) async {
+    try {
+      await client.from('profiles').insert({
+        'id': user.id,
+        'phone': phoneNumber,
+        'role': role,
+        'auth_provider': 'whatsapp',
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      print('Error creating user profile: $e');
+    }
+  }
+
+  Future<bool> isWhatsAppAvailable(String phoneNumber) async {
+    return await WhatsAppAuthService.instance.isWhatsAppAvailable(phoneNumber);
+  }
 
   // Exhibition methods
   Future<List<Map<String, dynamic>>> getExhibitions() async {
