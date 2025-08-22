@@ -1,30 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'core/theme/app_theme.dart';
-import 'core/routes/app_router.dart';
-import 'core/services/supabase_service.dart';
-import 'features/auth/presentation/screens/splash_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:exhibae/core/config/supabase_config.dart';
+import 'package:exhibae/core/config/whatsapp_config.dart';
+import 'package:exhibae/core/services/supabase_service.dart';
+import 'package:exhibae/features/auth/presentation/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Supabase
-  await SupabaseService.initialize();
-  
-  // Set preferred orientations
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-  
-  // Set system UI overlay style
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ),
-  );
-  
+  try {
+    await Supabase.initialize(
+      url: SupabaseConfig.url,
+      anonKey: SupabaseConfig.anonKey,
+    );
+  } catch (e) {
+    // Handle initialization error
+  }
+
   runApp(const ExhibaeApp());
 }
 
@@ -35,13 +28,12 @@ class ExhibaeApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Exhibae',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.light,
-      initialRoute: AppRouter.splash,
-      onGenerateRoute: AppRouter.onGenerateRoute,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
       home: const SplashScreen(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }

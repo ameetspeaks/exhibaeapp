@@ -135,6 +135,11 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Redirect to improved signup flow
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.pushReplacementNamed(context, '/improved-signup');
+    });
+    
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(

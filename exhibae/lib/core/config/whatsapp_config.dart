@@ -1,24 +1,21 @@
 class WhatsAppConfig {
-  // WhatsApp Business API Configuration
-  // Replace these with your actual WhatsApp Business API credentials
+  // Aisensy WhatsApp API Configuration
+  // Replace these with your actual Aisensy API credentials
   
-  // Your WhatsApp Business Phone Number ID
-  static const String phoneNumberId = 'YOUR_PHONE_NUMBER_ID';
+  // Your Aisensy API Key
+  static const String apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OWM3N2ViZTgwYjdmMGMyZjRmZjE5YiIsIm5hbWUiOiJFeGhpYmFlIiwiYXBwTmFtZSI6IkFpU2Vuc3kiLCJjbGllbnRJZCI6IjY4OWM3N2ViZTgwYjdmMGMyZjRmZjE5NiIsImFjdGl2ZVBsYW4iOiJGUkVFX0ZPUkVWRVIiLCJpYXQiOjE3NTUwODQ3Nzl9.cjPM5l-xG-eA849w3EIQo0jPfFLYjGvASJUV5jC0b-k';
   
-  // Your WhatsApp Business Access Token
-  static const String accessToken = 'YOUR_ACCESS_TOKEN';
+  // Aisensy API Base URL
+  static const String baseUrl = 'https://backend.aisensy.com';
   
-  // Your webhook verify token
-  static const String verifyToken = 'YOUR_VERIFY_TOKEN';
+  // Campaign name for authentication
+  static const String campaignName = 'auth';
   
-  // WhatsApp Business API Base URL
-  static const String baseUrl = 'https://graph.facebook.com/v18.0';
+  // User name for messages
+  static const String userName = 'Exhibae';
   
-  // Message template name for OTP verification
-  static const String otpTemplateName = 'otp_verification';
-  
-  // Language code for messages
-  static const String languageCode = 'en';
+  // Source identifier
+  static const String source = 'organic';
   
   // OTP expiration time in minutes
   static const int otpExpirationMinutes = 5;
@@ -29,47 +26,44 @@ class WhatsAppConfig {
   // Resend OTP cooldown in seconds
   static const int resendCooldownSeconds = 30;
   
-  // WhatsApp Business API endpoints
-  static String get messagesEndpoint => '$baseUrl/$phoneNumberId/messages';
-  static String get webhookEndpoint => '$baseUrl/$phoneNumberId/webhook';
+  // Aisensy API endpoints
+  static String get messagesEndpoint => '$baseUrl/campaign/t1/api/v2';
   
-  // Message template structure
+  // Message template structure for Aisensy API
   static Map<String, dynamic> getOtpMessageTemplate(String phoneNumber, String otp) {
     return {
-      'messaging_product': 'whatsapp',
-      'to': phoneNumber,
-      'type': 'template',
-      'template': {
-        'name': otpTemplateName,
-        'language': {
-          'code': languageCode
-        },
-        'components': [
-          {
-            'type': 'body',
-            'parameters': [
-              {
-                'type': 'text',
-                'text': otp
-              }
-            ]
-          }
-        ]
-      }
+      'apiKey': apiKey,
+      'campaignName': campaignName,
+      'destination': phoneNumber.replaceAll('+', ''), // Remove + for Aisensy
+      'userName': userName,
+      'source': source,
+      'templateParams': [otp],
+      'buttons': [
+        {
+          'type': 'button',
+          'sub_type': 'url',
+          'index': '0', // String format as per API docs
+          'parameters': [
+            {
+              'type': 'text',
+              'text': otp
+            }
+          ]
+        }
+      ]
     };
   }
   
   // Headers for API requests
   static Map<String, String> get apiHeaders => {
-    'Authorization': 'Bearer $accessToken',
     'Content-Type': 'application/json',
   };
   
-  // Webhook verification response
+  // Webhook verification response (if needed for Aisensy)
   static Map<String, dynamic> getWebhookVerificationResponse(String challenge) {
     return {
       'hub.mode': 'subscribe',
-      'hub.verify_token': verifyToken,
+      'hub.verify_token': 'aisensy_verify_token',
       'hub.challenge': challenge,
     };
   }

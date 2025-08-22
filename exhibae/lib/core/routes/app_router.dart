@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/onboarding_screen.dart';
 import '../../features/auth/presentation/screens/auth_screen.dart';
-import '../../features/auth/presentation/screens/signup_screen.dart';
+import '../../features/auth/presentation/screens/improved_signup_flow_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/otp_verification_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
@@ -43,6 +43,7 @@ import '../../features/organizer/presentation/screens/edit_profile_screen.dart';
 import '../../features/auth/presentation/screens/whatsapp_login_screen.dart';
 import '../../features/auth/presentation/screens/whatsapp_otp_verification_screen.dart';
 import '../../features/auth/presentation/screens/phone_verification_screen.dart';
+import '../../features/auth/presentation/screens/role_selection_screen.dart';
 
 class AppRouter {
   static const String splash = '/splash';
@@ -89,6 +90,8 @@ class AppRouter {
   static const String whatsappLogin = '/whatsapp-login';
   static const String whatsappOtpVerification = '/whatsapp-otp-verification';
   static const String phoneVerification = '/phone-verification';
+  static const String improvedSignup = '/improved-signup';
+  static const String roleSelection = '/role-selection';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -106,7 +109,7 @@ class AppRouter {
         );
       case signup:
         return MaterialPageRoute(
-          builder: (_) => const SignupScreen(),
+          builder: (_) => const ImprovedSignupFlowScreen(),
         );
       case login:
         return MaterialPageRoute(
@@ -322,6 +325,17 @@ class AppRouter {
       case phoneVerification:
         return MaterialPageRoute(
           builder: (_) => const PhoneVerificationScreen(),
+        );
+      case improvedSignup:
+        return MaterialPageRoute(
+          builder: (_) => const ImprovedSignupFlowScreen(),
+        );
+      case roleSelection:
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => RoleSelectionScreen(
+            phoneNumber: args['phoneNumber'] as String,
+          ),
         );
       default:
         return MaterialPageRoute(

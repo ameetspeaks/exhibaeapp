@@ -62,6 +62,29 @@ class _ShopperFavoritesScreenState extends State<ShopperFavoritesScreen>
 
       print('Raw favorite exhibitions data: $favoriteExhibitionsData');
 
+      // Process favorite exhibitions to add stall availability data
+      final processedFavoriteExhibitions = await Future.wait(favoriteExhibitionsData.map((item) async {
+        final exhibition = item['exhibition'] as Map<String, dynamic>?;
+        if (exhibition == null) return <String, dynamic>{};
+        
+        // Get available stall instances count
+        int availableStalls = 0;
+        try {
+          availableStalls = await _supabaseService.getAvailableStallInstancesCount(exhibition['id']);
+        } catch (e) {
+          print('Error fetching stall instances for exhibition ${exhibition['id']}: $e');
+        }
+        
+        // Update the exhibition data with stall availability
+        final updatedExhibition = {
+          ...exhibition,
+          'is_favorited': true,
+          'availableStalls': availableStalls,
+        };
+        
+        return updatedExhibition;
+      }));
+
       // Load favorite brands using centralized method
       final favoriteBrandsData = await _supabaseService.getUserFavoriteBrands(userId);
 
@@ -89,14 +112,7 @@ class _ShopperFavoritesScreenState extends State<ShopperFavoritesScreen>
 
       setState(() {
         _favoriteExhibitions = List<Map<String, dynamic>>.from(
-          favoriteExhibitionsData.map((item) {
-            final exhibition = item['exhibition'] as Map<String, dynamic>?;
-            if (exhibition != null) {
-              exhibition['is_favorited'] = true;
-              return exhibition;
-            }
-            return <String, dynamic>{};
-          }).where((exhibition) => exhibition.isNotEmpty),
+          processedFavoriteExhibitions.map((item) => item),
         );
         
         _favoriteBrands = List<Map<String, dynamic>>.from(

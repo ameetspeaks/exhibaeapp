@@ -579,6 +579,32 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 1),
+                    
+                    // Stall Availability
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.storefront,
+                          size: 8,
+                          color: AppTheme.primaryBlue,
+                        ),
+                        const SizedBox(width: 2),
+                        Expanded(
+                          child: Text(
+                            availableStalls > 0 
+                              ? '$availableStalls stalls available'
+                              : 'No stalls available',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                              color: availableStalls > 0 ? AppTheme.successGreen : AppTheme.errorRed,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),

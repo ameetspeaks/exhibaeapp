@@ -1,6 +1,6 @@
-# WhatsApp Business API Integration Guide
+# Aisensy WhatsApp API Integration Guide
 
-This guide provides step-by-step instructions for integrating WhatsApp Business API authentication into your existing Exhibae app while preserving the current email/password authentication system.
+This guide provides step-by-step instructions for integrating Aisensy WhatsApp API authentication into your existing Exhibae app while preserving the current email/password authentication system.
 
 ## Overview
 
@@ -10,6 +10,7 @@ The WhatsApp integration adds the following capabilities to your existing authen
 2. **Phone Verification**: Users can add and verify phone numbers to enable WhatsApp login
 3. **Enhanced Security**: Two-factor authentication via WhatsApp
 4. **Seamless Integration**: Works alongside existing email/password authentication
+5. **Simplified Setup**: Uses Aisensy's managed WhatsApp API service
 
 ## Architecture
 
@@ -86,35 +87,33 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) D
 
 ## Setup Instructions
 
-### Step 1: WhatsApp Business API Setup
+### Step 1: Aisensy WhatsApp API Setup
 
-1. **Create Meta Developer Account**
-   - Go to [Meta for Developers](https://developers.facebook.com/)
-   - Create a developer account and complete verification
+1. **Create Aisensy Account**
+   - Go to [Aisensy](https://aisensy.com/)
+   - Sign up for an account
+   - Complete your profile and business verification
 
-2. **Create WhatsApp Business App**
-   - In Meta Developer Console, create a new app
-   - Select "Business" as app type
-   - Add "WhatsApp" product to your app
+2. **Get API Credentials**
+   - Navigate to your Aisensy dashboard
+   - Go to API section
+   - Generate your API key
+   - Note down your API key for configuration
 
-3. **Configure WhatsApp Business API**
-   - Go to WhatsApp > Getting Started
-   - Add a phone number to your WhatsApp Business account
-   - Note down the Phone Number ID
-   - Generate a permanent access token
+3. **Configure WhatsApp Business**
+   - Connect your WhatsApp Business account
+   - Verify your business phone number
+   - Set up message templates for OTP
 
 4. **Create Message Template**
-   - Go to WhatsApp > Message Templates
-   - Create template with name: `otp_verification`
-   - Category: Authentication
-   - Language: English
-   - Content: `Your Exhibae verification code is: {{1}}. This code will expire in 5 minutes.`
-   - Submit for approval (24-48 hours)
+   - In Aisensy dashboard, create a template for OTP
+   - Template name: `auth`
+   - Content: Include OTP placeholder for verification
+   - Submit for approval
 
-5. **Set up Webhook** (Optional)
-   - Go to WhatsApp > Configuration
-   - Set webhook URL for receiving delivery status
-   - Generate a verify token
+5. **Test API Integration**
+   - Use the provided curl command to test message sending
+   - Verify message delivery and response format
 
 ### Step 2: Database Migration
 
@@ -127,15 +126,15 @@ psql -h your-supabase-host -U postgres -d postgres -f database/migrations/create
 
 ### Step 3: Configuration
 
-Update the WhatsApp configuration file:
+Update the Aisensy configuration file:
 
 ```dart
 // lib/core/config/whatsapp_config.dart
 class WhatsAppConfig {
-  // Replace with your actual credentials
-  static const String phoneNumberId = 'YOUR_PHONE_NUMBER_ID';
-  static const String accessToken = 'YOUR_ACCESS_TOKEN';
-  static const String verifyToken = 'YOUR_VERIFY_TOKEN';
+  // Replace with your actual Aisensy credentials
+  static const String apiKey = 'YOUR_AISENSY_API_KEY';
+  static const String campaignName = 'auth';
+  static const String userName = 'Exhibae';
   
   // ... rest of configuration
 }
@@ -143,13 +142,11 @@ class WhatsAppConfig {
 
 ### Step 4: Environment Variables
 
-Add WhatsApp credentials to your environment:
+Add Aisensy credentials to your environment:
 
 ```env
 # .env file
-WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
-WHATSAPP_ACCESS_TOKEN=your_access_token
-WHATSAPP_VERIFY_TOKEN=your_verify_token
+AISENSY_API_KEY=your_aisensy_api_key
 ```
 
 ## Authentication Flow
@@ -194,6 +191,78 @@ User logs in with email/password (unchanged)
 Optional: User can add phone verification
          ↓
 User can now use WhatsApp login
+```
+
+## Aisensy API Integration
+
+### API Format
+
+The integration uses Aisensy's WhatsApp API with the following request format:
+
+```json
+{
+  "apiKey": "your_aisensy_api_key",
+  "campaignName": "auth",
+  "destination": "919670006261",
+  "userName": "Exhibae",
+  "source": "organic",
+  "templateParams": ["000000"],
+  "buttons": [
+    {
+      "type": "button",
+      "sub_type": "url",
+      "index": "0",
+      "parameters": [
+        {
+          "type": "text",
+          "text": "000000"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Testing API Integration
+
+Use this curl command to test the Aisensy API integration:
+
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{
+  "apiKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OWM3N2ViZTgwYjdmMGMyZjRmZjE5YiIsIm5hbWUiOiJFeGhpYmFlIiwiYXBwTmFtZSI6IkFpU2Vuc3kiLCJjbGllbnRJZCI6IjY4OWM3N2ViZTgwYjdmMGMyZjRmZjE5NiIsImFjdGl2ZVBsYW4iOiJGUkVFX0ZPUkVWRVIiLCJpYXQiOjE3NTUwODQ3Nzl9.cjPM5l-xG-eA849w3EIQo0jPfFLYjGvASJUV5jC0b-k",
+  "campaignName": "auth",
+  "destination": "919670006261",
+  "userName": "Exhibae",
+  "source": "organic",
+  "templateParams": ["000000"],
+  "buttons": [
+    {
+      "type": "button",
+      "sub_type": "url",
+      "index": "0",
+      "parameters": [
+        {
+          "type": "text",
+          "text": "000000"
+        }
+      ]
+    }
+  ]
+}' https://backend.aisensy.com/campaign/t1/api/v2
+```
+
+### API Response Format
+
+The Aisensy API returns responses in the following format:
+
+```json
+{
+  "status": "success",
+  "data": {
+    "messageId": "unique_message_id"
+  },
+  "message": "Message sent successfully"
+}
 ```
 
 ## API Endpoints

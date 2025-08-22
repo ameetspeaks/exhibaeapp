@@ -42,16 +42,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadUserRole() async {
     try {
+      // Debug authentication state
+      _supabaseService.debugAuthState();
+      
       // First try to get role from metadata
       final metadataRole = _supabaseService.currentUser?.userMetadata?['role'] as String?;
       
       if (metadataRole != null) {
+        // Normalize the role to handle both spellings
+        final normalizedRole = _normalizeRole(metadataRole);
         setState(() {
-          _cachedUserRole = metadataRole;
+          _cachedUserRole = normalizedRole;
           _isLoadingRole = false;
         });
         // Set default tab based on role
-        _setDefaultTabForRole(metadataRole);
+        _setDefaultTabForRole(normalizedRole);
         return;
       }
 
@@ -82,11 +87,19 @@ class _HomeScreenState extends State<HomeScreen> {
     _setDefaultTabForRole('brand');
   }
 
+  String _normalizeRole(String role) {
+    // Normalize role to handle both spellings
+    if (role == 'organizer' || role == 'organiser') {
+      return 'organiser'; // Use the database enum value
+    }
+    return role;
+  }
+
   void _setDefaultTabForRole(String role) {
     // Set default tab based on user role
     print('Setting default tab for role: $role'); // Debug print
     setState(() {
-      if (role == 'organizer') {
+      if (role == 'organizer' || role == 'organiser') {
         _currentIndex = 0; // Dashboard for organizers
       } else if (role == 'shopper') {
         _currentIndex = 0; // Home for shoppers
@@ -97,7 +110,14 @@ class _HomeScreenState extends State<HomeScreen> {
     print('Current index set to: $_currentIndex'); // Debug print
   }
 
-  String get _userRole => _cachedUserRole ?? 'brand';
+  String get _userRole {
+    final role = _cachedUserRole ?? 'brand';
+    // Normalize role to handle both spellings
+    if (role == 'organizer' || role == 'organiser') {
+      return 'organiser'; // Use the database enum value
+    }
+    return role;
+  }
 
   Widget _buildCurrentScreen() {
     if (_isLoadingRole) {
@@ -112,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     switch (_currentIndex) {
       case 0:
-        if (_userRole == 'organizer') {
+        if (_userRole == 'organizer' || _userRole == 'organiser') {
           return const OrganizerDashboard();
         } else if (_userRole == 'shopper') {
           return const ShopperHomeScreen();
@@ -126,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 3:
         return _buildProfileScreen();
       default:
-        if (_userRole == 'organizer') {
+        if (_userRole == 'organizer' || _userRole == 'organiser') {
           return const OrganizerDashboard();
         } else if (_userRole == 'shopper') {
           return const ShopperHomeScreen();
@@ -145,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
     
-    if (_userRole == 'organizer') {
+    if (_userRole == 'organizer' || _userRole == 'organiser') {
       return const OrganizerExhibitionsScreen();
     } else if (_userRole == 'shopper') {
       return const ShopperExploreScreen();
@@ -163,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
     
-    if (_userRole == 'organizer') {
+    if (_userRole == 'organizer' || _userRole == 'organiser') {
       return const ApplicationListScreen();
     } else if (_userRole == 'shopper') {
       return const ShopperFavoritesScreen();
@@ -181,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
     
-    if (_userRole == 'organizer') {
+    if (_userRole == 'organizer' || _userRole == 'organiser') {
       return const OrganizerProfileScreen();
     } else if (_userRole == 'shopper') {
       return const ShopperProfileScreen();
@@ -191,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<BottomNavigationBarItem> _buildBottomNavItems() {
-    if (_userRole == 'organizer') {
+    if (_userRole == 'organizer' || _userRole == 'organiser') {
       return const [
         BottomNavigationBarItem(
           icon: Icon(Icons.dashboard),

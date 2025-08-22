@@ -17,6 +17,7 @@ class _ShopperEditProfileScreenState extends State<ShopperEditProfileScreen> {
   // Form controllers
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _websiteUrlController = TextEditingController();
   final _facebookUrlController = TextEditingController();
@@ -36,6 +37,7 @@ class _ShopperEditProfileScreenState extends State<ShopperEditProfileScreen> {
   void dispose() {
     _fullNameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     _descriptionController.dispose();
     _websiteUrlController.dispose();
     _facebookUrlController.dispose();
@@ -57,6 +59,7 @@ class _ShopperEditProfileScreenState extends State<ShopperEditProfileScreen> {
             _currentAvatarUrl = profile['avatar_url'];
             _fullNameController.text = profile['full_name'] ?? '';
             _phoneController.text = profile['phone'] ?? '';
+            _emailController.text = profile['email'] ?? '';
             _descriptionController.text = profile['description'] ?? '';
             _websiteUrlController.text = profile['website_url'] ?? '';
             _facebookUrlController.text = profile['facebook_url'] ?? '';
@@ -105,12 +108,13 @@ class _ShopperEditProfileScreenState extends State<ShopperEditProfileScreen> {
         final updates = {
           'full_name': _fullNameController.text.trim(),
           'phone': _phoneController.text.trim(),
+          'email': _emailController.text.trim(),
           'description': _descriptionController.text.trim(),
           'website_url': _websiteUrlController.text.trim(),
           'facebook_url': _facebookUrlController.text.trim(),
         };
         
-        await _supabaseService.updateUserProfile(user.id, updates);
+        await _supabaseService.updateUserProfileData(user.id, updates);
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -197,15 +201,37 @@ class _ShopperEditProfileScreenState extends State<ShopperEditProfileScreen> {
                     
                     const SizedBox(height: 16),
                     
-                    // Phone
+                    // WhatsApp Number
                     TextFormField(
                       controller: _phoneController,
                       decoration: const InputDecoration(
-                        labelText: 'Phone Number',
+                        labelText: 'WhatsApp Number',
                         border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.phone),
+                        prefixIcon: Icon(Icons.message),
                       ),
                       keyboardType: TextInputType.phone,
+                    ),
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Email (Optional for WhatsApp users)
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: const InputDecoration(
+                        labelText: 'Email (Optional)',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.email),
+                        hintText: 'Enter your email address',
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (value) {
+                        if (value != null && value.isNotEmpty) {
+                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                            return 'Please enter a valid email address';
+                          }
+                        }
+                        return null;
+                      },
                     ),
                     
                     const SizedBox(height: 16),

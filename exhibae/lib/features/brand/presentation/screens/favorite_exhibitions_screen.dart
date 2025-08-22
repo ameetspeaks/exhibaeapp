@@ -47,10 +47,35 @@ class _FavoriteExhibitionsScreenState extends State<FavoriteExhibitionsScreen> {
 
       final favorites = await _supabaseService.getExhibitionFavorites(currentUser.id);
       
+      // Process favorites to add stall availability data
+      final processedFavorites = await Future.wait(favorites.map((favorite) async {
+        final exhibition = favorite['exhibition'] as Map<String, dynamic>?;
+        if (exhibition == null) return favorite;
+        
+        // Get available stall instances count
+        int availableStalls = 0;
+        try {
+          availableStalls = await _supabaseService.getAvailableStallInstancesCount(exhibition['id']);
+        } catch (e) {
+          print('Error fetching stall instances for exhibition ${exhibition['id']}: $e');
+        }
+        
+        // Update the exhibition data with stall availability
+        final updatedExhibition = {
+          ...exhibition,
+          'availableStalls': availableStalls,
+        };
+        
+        return {
+          ...favorite,
+          'exhibition': updatedExhibition,
+        };
+      }));
+      
       if (mounted) {
         setState(() {
-          _favoriteExhibitions = favorites;
-          _filteredExhibitions = favorites;
+          _favoriteExhibitions = processedFavorites;
+          _filteredExhibitions = processedFavorites;
           _isLoading = false;
         });
       }

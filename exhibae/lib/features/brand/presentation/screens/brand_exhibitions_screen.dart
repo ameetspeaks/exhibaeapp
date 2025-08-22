@@ -58,7 +58,7 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
       if (mounted) {
         // Process the exhibitions data to add required fields
         final rawExhibitions = List<Map<String, dynamic>>.from(futures[3]);
-        final processedExhibitions = rawExhibitions.map((exhibition) {
+        final processedExhibitions = await Future.wait(rawExhibitions.map((exhibition) async {
           final startDate = exhibition['start_date'] != null 
             ? DateTime.parse(exhibition['start_date'])
             : DateTime.now();
@@ -72,18 +72,37 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
             ? _supabaseService.getPublicUrl('exhibition-images', images.first)
             : null;
           
+          // Fetch actual stall count for this exhibition
+          int availableStalls = 0;
+          try {
+            availableStalls = await _supabaseService.getAvailableStallInstancesCount(exhibition['id']);
+          } catch (e) {
+            print('Error fetching stall instances for exhibition ${exhibition['id']}: $e');
+          }
+          
+          // Check if this exhibition is favorited by the current user
+          bool isFavorite = false;
+          try {
+            final currentUser = _supabaseService.currentUser;
+            if (currentUser != null) {
+              isFavorite = await _supabaseService.isExhibitionFavorited(currentUser.id, exhibition['id']);
+            }
+          } catch (e) {
+            print('Error checking favorite status: $e');
+          }
+          
           return {
             ...exhibition,
             'date': formattedDate,
             'image_url': imageUrl,
             'amenities': List<String>.from(exhibition['amenities'] ?? []),
             'venue_details': exhibition['venue_details'] ?? {},
-            'isFavorite': false, // Add default favorite status
-            'availableStalls': exhibition['available_stalls'] ?? 0, // Add available stalls count
-            'priceRange': exhibition['price_range'] ?? 'Contact for pricing', // Add price range
-            'location': exhibition['city'] ?? 'Location not specified', // Add location field
+            'isFavorite': isFavorite,
+            'availableStalls': availableStalls,
+            'priceRange': exhibition['price_range'] ?? null,
+            'location': exhibition['city'] ?? 'Location not specified',
           };
-        }).toList();
+        }));
 
         setState(() {
           _categories = List<Map<String, dynamic>>.from(futures[0]);
@@ -140,16 +159,9 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
         // Fetch actual stall count for this exhibition
         int availableStalls = 0;
         try {
-          final stalls = await _supabaseService.getStallsByExhibition(exhibition['id']);
-          availableStalls = stalls.where((stall) {
-            final instances = stall['instances'] as List<dynamic>?;
-            if (instances != null && instances.isNotEmpty) {
-              return instances.any((instance) => instance['status'] == 'available');
-            }
-            return stall['status'] == 'available';
-          }).length;
+          availableStalls = await _supabaseService.getAvailableStallInstancesCount(exhibition['id']);
         } catch (e) {
-          print('Error fetching stalls for exhibition ${exhibition['id']}: $e');
+          print('Error fetching stall instances for exhibition ${exhibition['id']}: $e');
         }
         
         // Check if this exhibition is favorited by the current user
@@ -230,16 +242,9 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
         // Fetch actual stall count for this exhibition
         int availableStalls = 0;
         try {
-          final stalls = await _supabaseService.getStallsByExhibition(exhibition['id']);
-          availableStalls = stalls.where((stall) {
-            final instances = stall['instances'] as List<dynamic>?;
-            if (instances != null && instances.isNotEmpty) {
-              return instances.any((instance) => instance['status'] == 'available');
-            }
-            return stall['status'] == 'available';
-          }).length;
+          availableStalls = await _supabaseService.getAvailableStallInstancesCount(exhibition['id']);
         } catch (e) {
-          print('Error fetching stalls for exhibition ${exhibition['id']}: $e');
+          print('Error fetching stall instances for exhibition ${exhibition['id']}: $e');
         }
         
         // Check if this exhibition is favorited by the current user
@@ -314,16 +319,9 @@ class _BrandExhibitionsScreenState extends State<BrandExhibitionsScreen> {
         // Fetch actual stall count for this exhibition
         int availableStalls = 0;
         try {
-          final stalls = await _supabaseService.getStallsByExhibition(exhibition['id']);
-          availableStalls = stalls.where((stall) {
-            final instances = stall['instances'] as List<dynamic>?;
-            if (instances != null && instances.isNotEmpty) {
-              return instances.any((instance) => instance['status'] == 'available');
-            }
-            return stall['status'] == 'available';
-          }).length;
+          availableStalls = await _supabaseService.getAvailableStallInstancesCount(exhibition['id']);
         } catch (e) {
-          print('Error fetching stalls for exhibition ${exhibition['id']}: $e');
+          print('Error fetching stall instances for exhibition ${exhibition['id']}: $e');
         }
         
         // Check if this exhibition is favorited by the current user

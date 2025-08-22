@@ -214,7 +214,7 @@ class _WhatsAppLoginScreenState extends State<WhatsAppLoginScreen> {
                             ],
                           ),
                           child: const Icon(
-                            Icons.whatsapp,
+                            Icons.message,
                             color: Colors.white,
                             size: 40,
                           ),

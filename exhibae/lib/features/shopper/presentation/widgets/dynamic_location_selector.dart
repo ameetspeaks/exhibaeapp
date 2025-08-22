@@ -62,11 +62,7 @@ class _DynamicLocationSelectorState extends State<DynamicLocationSelector> {
       _filteredCities.insert(0, widget.selectedLocation);
     }
     
-    // Debug print
-    print('Search Query: $_searchQuery');
-    print('Available Cities: ${widget.availableCities}');
-    print('Unique Cities: $uniqueCities');
-    print('Filtered Cities: $_filteredCities');
+    // Filter cities based on search query
   }
 
   @override

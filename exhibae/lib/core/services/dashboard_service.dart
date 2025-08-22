@@ -9,6 +9,11 @@ class DashboardService {
 
   final SupabaseService _supabaseService = SupabaseService.instance;
 
+  // Helper to format date
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
   // Get dashboard data for brands
   Future<Map<String, dynamic>> getBrandDashboardData(String userId) async {
     try {
@@ -60,7 +65,7 @@ class DashboardService {
       try {
         final exhibitions = await _supabaseService.getExhibitions();
         
-        // Process exhibitions to add favorite status
+        // Process exhibitions to add favorite status and stall availability
         final processedExhibitions = await Future.wait(exhibitions.map((exhibition) async {
           // Check if this exhibition is favorited by the current user
           bool isFavorite = false;
@@ -70,9 +75,38 @@ class DashboardService {
             // Continue without favorite status
           }
           
+          // Fetch actual stall count for this exhibition
+          int availableStalls = 0;
+          try {
+            // Query stall_instances directly for available instances
+            availableStalls = await _supabaseService.getAvailableStallInstancesCount(exhibition['id']);
+          } catch (e) {
+            print('Error fetching stall instances for exhibition ${exhibition['id']}: $e');
+          }
+          
+          // Format date
+          final startDate = exhibition['start_date'] != null 
+            ? DateTime.parse(exhibition['start_date'])
+            : DateTime.now();
+          final endDate = exhibition['end_date'] != null 
+            ? DateTime.parse(exhibition['end_date'])
+            : DateTime.now();
+          final formattedDate = '${_formatDate(startDate)} - ${_formatDate(endDate)}';
+          
+          // Get image URL
+          final images = List<String>.from(exhibition['images'] ?? []);
+          final imageUrl = images.isNotEmpty 
+            ? _supabaseService.getPublicUrl('exhibition-images', images.first)
+            : null;
+          
           return {
             ...exhibition,
             'isFavorite': isFavorite,
+            'availableStalls': availableStalls,
+            'date': formattedDate,
+            'image_url': imageUrl,
+            'priceRange': exhibition['price_range'] ?? null,
+            'location': exhibition['city'] ?? 'Location not specified',
           };
         }).toList());
         

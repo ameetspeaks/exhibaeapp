@@ -37,40 +37,23 @@ class _ShopperHomeScreenState extends State<ShopperHomeScreen> {
         _isLoading = true;
       });
 
-      // First, let's check what data exists in the exhibitions table
-      print('=== DEBUGGING EXHIBITIONS DATA ===');
-      
-      // Check all exhibitions regardless of status
+      // Load exhibitions data
       final allExhibitions = await _supabaseService.client
           .from('exhibitions')
           .select()
           .limit(10);
-      print('All exhibitions (any status): ${allExhibitions.length}');
-      if (allExhibitions.isNotEmpty) {
-        print('Sample exhibition: ${allExhibitions.first}');
-      }
 
-      // Check approved exhibitions
       final approvedExhibitions = await _supabaseService.client
           .from('exhibitions')
           .select()
           .eq('status', 'approved')
           .limit(10);
-      print('Approved exhibitions: ${approvedExhibitions.length}');
-      if (approvedExhibitions.isNotEmpty) {
-        print('Sample approved exhibition: ${approvedExhibitions.first}');
-      }
 
-      // Check exhibitions with future dates
       final futureExhibitions = await _supabaseService.client
           .from('exhibitions')
           .select()
           .gte('start_date', DateTime.now().toIso8601String())
           .limit(10);
-      print('Future exhibitions: ${futureExhibitions.length}');
-      if (futureExhibitions.isNotEmpty) {
-        print('Sample future exhibition: ${futureExhibitions.first}');
-      }
 
       // Load recent exhibitions (simplified approach)
       var recentQuery = _supabaseService.client
@@ -92,7 +75,6 @@ class _ShopperHomeScreenState extends State<ShopperHomeScreen> {
           .limit(10);
 
       List<Map<String, dynamic>> finalRecentData = List<Map<String, dynamic>>.from(recentData);
-      print('Recent exhibitions found: ${finalRecentData.length}');
 
       // Load upcoming events (simplified approach)
       var upcomingQuery = _supabaseService.client
@@ -149,25 +131,7 @@ class _ShopperHomeScreenState extends State<ShopperHomeScreen> {
         _isLoading = false;
       });
 
-      // Debug print to check data
-      print('Selected Location: $_selectedLocation');
-      print('Recent Exhibitions: ${_recentExhibitions.length}');
-      print('Upcoming Events: ${_upcomingEvents.length}');
-      print('Nearby Events: ${_nearbyEvents.length}');
-      
-      // Debug: Print first exhibition data if available
-      if (_recentExhibitions.isNotEmpty) {
-        print('Sample Recent Exhibition Data: ${_recentExhibitions.first}');
-      }
-      
-      // Debug: Print first upcoming event data if available
-      if (_upcomingEvents.isNotEmpty) {
-        print('Sample Upcoming Event Data: ${_upcomingEvents.first}');
-        print('Upcoming Event Favorite Status: ${_upcomingEvents.first['is_favorited']}');
-        print('Upcoming Event Attending Status: ${_upcomingEvents.first['is_attending']}');
-      }
-      
-      print('=== END DEBUGGING ===');
+      // Data loaded successfully
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -187,8 +151,6 @@ class _ShopperHomeScreenState extends State<ShopperHomeScreen> {
     try {
       final currentUser = _supabaseService.currentUser;
       if (currentUser == null) return;
-
-      print('Loading user status for ${exhibitions.length} exhibitions');
 
       for (int i = 0; i < exhibitions.length; i++) {
         final exhibition = exhibitions[i];
@@ -212,11 +174,9 @@ class _ShopperHomeScreenState extends State<ShopperHomeScreen> {
           'is_favorited': isFavorited,
           'is_attending': isAttending,
         };
-        
-        print('Exhibition ${exhibition['title']}: Favorite=$isFavorited, Attending=$isAttending');
       }
     } catch (e) {
-      print('Error loading user status for exhibitions: $e');
+      // Silently handle errors
     }
   }
 
@@ -285,8 +245,6 @@ class _ShopperHomeScreenState extends State<ShopperHomeScreen> {
           .toList()
         ..sort();
       
-      print('All cities from DB: $allCities');
-      
       // Load cities that have approved exhibitions
       final citiesData = await _supabaseService.client
           .from('exhibitions')
@@ -307,17 +265,11 @@ class _ShopperHomeScreenState extends State<ShopperHomeScreen> {
       setState(() {
         _availableCities = uniqueCities;
       });
-
-      // Debug print to check cities
-      print('Available Cities: $_availableCities');
-      print('Approved Cities from DB: $cities');
-      print('=== END CITIES DEBUG ===');
     } catch (e) {
       // If loading cities fails, use default list
       setState(() {
         _availableCities = ['All Locations', 'Gautam Buddha Nagar'].toSet().toList();
       });
-      print('Error loading cities: $e');
     }
   }
 

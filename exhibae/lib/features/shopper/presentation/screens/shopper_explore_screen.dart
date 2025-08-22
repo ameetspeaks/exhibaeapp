@@ -108,6 +108,9 @@ class _ShopperExploreScreenState extends State<ShopperExploreScreen>
       // Load user's favorite status for brands
       await _loadUserStatusForBrands(brandsList);
 
+      // Load stall availability for exhibitions
+      await _loadStallAvailabilityForExhibitions(exhibitionsList);
+
       setState(() {
         _exhibitions = exhibitionsList;
         _brands = brandsList;
@@ -204,6 +207,45 @@ class _ShopperExploreScreenState extends State<ShopperExploreScreen>
       print('Brand status loaded successfully');
     } catch (e) {
       print('Error loading user status for brands: $e');
+    }
+  }
+
+  Future<void> _loadStallAvailabilityForExhibitions(List<Map<String, dynamic>> exhibitions) async {
+    try {
+      print('=== LOADING STALL AVAILABILITY ===');
+      print('Loading stall availability for ${exhibitions.length} exhibitions');
+
+      for (int i = 0; i < exhibitions.length; i++) {
+        final exhibition = exhibitions[i];
+        final exhibitionId = exhibition['id'];
+        final exhibitionTitle = exhibition['title'] ?? 'Unknown';
+
+        print('Processing exhibition: $exhibitionTitle (ID: $exhibitionId)');
+
+        // Get available stall instances count
+        final availableStalls = await _supabaseService.getAvailableStallInstancesCount(exhibitionId);
+
+        print('Exhibition "$exhibitionTitle": $availableStalls available stalls');
+
+        // Update the exhibition data with stall availability
+        exhibitions[i] = {
+          ...exhibition,
+          'availableStalls': availableStalls,
+        };
+      }
+
+      print('=== STALL AVAILABILITY LOADED SUCCESSFULLY ===');
+      print('Total exhibitions processed: ${exhibitions.length}');
+      
+      // Log summary of stall availability
+      final exhibitionsWithStalls = exhibitions.where((e) => (e['availableStalls'] ?? 0) > 0).length;
+      final exhibitionsWithoutStalls = exhibitions.where((e) => (e['availableStalls'] ?? 0) == 0).length;
+      print('Exhibitions with available stalls: $exhibitionsWithStalls');
+      print('Exhibitions without available stalls: $exhibitionsWithoutStalls');
+      
+    } catch (e) {
+      print('Error loading stall availability for exhibitions: $e');
+      print('Stack trace: ${StackTrace.current}');
     }
   }
 

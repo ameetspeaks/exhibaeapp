@@ -825,9 +825,9 @@ class _BrandDashboardState extends State<BrandDashboard> {
         _dashboardData!['exhibitionsByCity'] = []; // Clear previous exhibitions
       });
 
-      // Fetch exhibitions for the new city
-      final exhibitions = await _supabaseService.getExhibitions();
-      final cityExhibitions = exhibitions.where((exhibition) => 
+      // Use the processed exhibitions data from dashboard service instead of fetching again
+      final allExhibitions = _dashboardData!['allExhibitions'] as List<dynamic>? ?? [];
+      final cityExhibitions = allExhibitions.where((exhibition) => 
         exhibition['city']?.toString() == newCity
       ).toList();
 

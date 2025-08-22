@@ -281,6 +281,31 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 8),
+                        
+                        // Stall Availability
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.storefront_outlined,
+                              size: 16,
+                              color: AppTheme.textMediumGray,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _getStallAvailabilityText(),
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: _getStallAvailabilityColor(),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                   const SizedBox(height: 16),
                   
                   // Action buttons
@@ -556,5 +581,18 @@ class _ExhibitionCardState extends State<ExhibitionCard> {
     
     final endFormatted = '${endDate.day}/${endDate.month}/${endDate.year}';
     return '$startFormatted - $endFormatted';
+  }
+
+  String _getStallAvailabilityText() {
+    final availableStalls = widget.exhibition['availableStalls'] ?? 0;
+    
+    return availableStalls > 0 
+      ? '$availableStalls stalls available'
+      : 'No stalls available';
+  }
+
+  Color _getStallAvailabilityColor() {
+    final availableStalls = widget.exhibition['availableStalls'] ?? 0;
+    return availableStalls > 0 ? AppTheme.successGreen : AppTheme.errorRed;
   }
 }

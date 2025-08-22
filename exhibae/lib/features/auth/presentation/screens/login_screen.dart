@@ -3,6 +3,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/services/supabase_service.dart';
 import 'whatsapp_login_screen.dart';
+import 'whatsapp_otp_verification_screen.dart';
+import 'package:phone_numbers_parser/phone_numbers_parser.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,19 +15,16 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
   
   bool _isLoading = false;
-  bool _obscurePassword = true;
-  String _selectedRole = 'organizer';
+  String _selectedCountryCode = '+91'; // Default to India (+91)
 
   final SupabaseService _supabaseService = SupabaseService.instance;
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -39,47 +38,81 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // First, sign in to get user info
-      final response = await _supabaseService.signIn(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-        role: _selectedRole,
-      );
+      final fullPhoneNumber = '$_selectedCountryCode${_phoneController.text.trim()}';
+      final formattedPhone = await _formatPhoneNumber(fullPhoneNumber);
+      
+      // Check if user exists with this phone number
+      final existingUser = await _supabaseService.findUserByPhone(formattedPhone);
+      
+      if (existingUser != null && existingUser['phone_verified'] == true) {
+        // Send WhatsApp OTP for login
+        final otpResult = await _supabaseService.sendWhatsAppOtp(
+          phoneNumber: formattedPhone,
+          verificationType: 'whatsapp_login',
+        );
+        
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-
-        if (response.user != null) {
-          // Check if user's actual role matches selected role
-          final userRole = response.user!.userMetadata?['role'] ?? 
-                          await _getUserRoleFromProfiles(response.user!.id);
-          
-          if (userRole != null && userRole.toLowerCase() != _selectedRole.toLowerCase()) {
-            // Role mismatch - show error
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Access denied: This account is registered as a ${userRole.toUpperCase()}, not ${_selectedRole.toUpperCase()}'),
-                backgroundColor: AppTheme.errorRed,
-                duration: const Duration(seconds: 5),
+          if (otpResult['success']) {
+            print('OTP sent successfully, navigating to verification screen');
+            // Navigate to OTP verification screen
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => WhatsAppOtpVerificationScreen(
+                  phoneNumber: formattedPhone,
+                  verificationType: 'whatsapp_login',
+                ),
               ),
             );
-            return;
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(otpResult['message']),
+                backgroundColor: AppTheme.errorRed,
+              ),
+            );
           }
-
-          // Role matches - navigate to dashboard
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            '/home',
-            (route) => false,
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Login failed. Please check your credentials.'),
-              backgroundColor: AppTheme.errorRed,
-            ),
+        }
+      } else {
+        // User doesn't exist or phone not verified
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+          
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Account Not Found'),
+                content: const Text(
+                  'No account found with this WhatsApp number. Would you like to create a new account?',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.pushReplacementNamed(context, '/improved-signup');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryMaroon,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Sign Up'),
+                  ),
+                ],
+              );
+            },
           );
         }
       }
@@ -98,19 +131,27 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<String?> _getUserRoleFromProfiles(String userId) async {
+  Future<String> _formatPhoneNumber(String phoneNumber) async {
     try {
-      final response = await _supabaseService.client
-          .from('profiles')
-          .select('role')
-          .eq('id', userId)
-          .single();
-      return response['role'];
+      final parsed = PhoneNumber.parse(phoneNumber);
+      return parsed.international;
     } catch (e) {
-      print('Error fetching user role: $e');
-      return null;
+      print('Error formatting phone number: $e');
+      return phoneNumber;
     }
   }
+
+  String? _validatePhone(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your WhatsApp number';
+    }
+    if (value.length < 10) {
+      return 'Please enter a valid WhatsApp number';
+    }
+    return null;
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -178,13 +219,47 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 60),
+                    const SizedBox(height: 40),
+
+                    // WhatsApp Authentication Badge
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF25D366).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(0xFF25D366).withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.message,
+                              color: const Color(0xFF25D366),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'WhatsApp Authentication',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF25D366),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 30),
 
                     // Login Text
                     Text(
-                      'Login',
+                      'Sign In',
                       style: const TextStyle(
-                        fontSize: 24,
+                        fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Colors.black,
                       ),
@@ -203,7 +278,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         GestureDetector(
                           onTap: () {
-                            Navigator.pushNamed(context, '/signup');
+                            Navigator.pushNamed(context, '/improved-signup');
                           },
                           child: Text(
                             'Sign Up',
@@ -218,43 +293,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    // Role Selection
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: AppTheme.backgroundPeach.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppTheme.borderLightGray,
-                        ),
-                      ),
-                      child: IntrinsicHeight(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            Expanded(child: _buildRoleButton('ORGANIZER', 'organizer')),
-                            Container(
-                              width: 1,
-                              color: AppTheme.borderLightGray,
-                            ),
-                            Expanded(child: _buildRoleButton('BRAND', 'brand')),
-                            Container(
-                              width: 1,
-                              color: AppTheme.borderLightGray,
-                            ),
-                            Expanded(child: _buildRoleButton('SHOPPER', 'shopper')),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 40),
-
-                    // Email Field
+                    // Phone Number Field
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'EMAIL ADDRESS',
+                          'WHATSAPP NUMBER',
                           style: TextStyle(
                             color: Colors.black,
                             fontSize: 14,
@@ -270,87 +314,54 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: AppTheme.borderLightGray,
                             ),
                           ),
-                          child: TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            style: TextStyle(color: Colors.black),
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: Colors.white,
-                              hintText: 'Enter your email',
-                              hintStyle: TextStyle(
-                                color: Colors.black.withOpacity(0.5),
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter your email';
-                              }
-                              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                                return 'Please enter a valid email address';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Password Field
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'PASSWORD',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: AppTheme.backgroundPeach.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppTheme.borderLightGray,
-                            ),
-                          ),
-                          child: TextFormField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            style: TextStyle(color: Colors.black),
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: Colors.white,
-                              hintText: 'Enter your password',
-                              hintStyle: TextStyle(
-                                color: Colors.black.withOpacity(0.5),
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                                  color: Colors.black.withOpacity(0.5),
+                          child: Row(
+                            children: [
+                              // Country Code Dropdown
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppTheme.borderLightGray),
                                 ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
+                                child: DropdownButton<String>(
+                                  value: _selectedCountryCode,
+                                  underline: Container(),
+                                  items: [
+                                    DropdownMenuItem(value: '+91', child: Text('🇮🇳 +91')),
+                                    DropdownMenuItem(value: '+1', child: Text('🇺🇸 +1')),
+                                    DropdownMenuItem(value: '+44', child: Text('🇬🇧 +44')),
+                                    DropdownMenuItem(value: '+61', child: Text('🇦🇺 +61')),
+                                    DropdownMenuItem(value: '+86', child: Text('🇨🇳 +86')),
+                                  ],
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _selectedCountryCode = value!;
+                                    });
+                                  },
+                                ),
                               ),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Please enter your password';
-                              }
-                              return null;
-                            },
+                              const SizedBox(width: 8),
+                              // Phone Number Input
+                              Expanded(
+                                child: TextFormField(
+                                  controller: _phoneController,
+                                  keyboardType: TextInputType.phone,
+                                  style: TextStyle(color: Colors.black),
+                                  decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    hintText: 'Enter 10-digit number',
+                                    hintStyle: TextStyle(
+                                      color: Colors.black.withOpacity(0.5),
+                                    ),
+                                    border: InputBorder.none,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  ),
+                                  validator: _validatePhone,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -363,13 +374,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: TextButton(
                         onPressed: _isLoading ? null : _handleLogin,
                         style: TextButton.styleFrom(
-                          backgroundColor: AppTheme.primaryMaroon,
+                          backgroundColor: const Color(0xFF25D366),
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                             side: BorderSide(
-                              color: AppTheme.primaryMaroon,
+                              color: const Color(0xFF25D366),
                             ),
                           ),
                         ),
@@ -382,13 +393,20 @@ class _LoginScreenState extends State<LoginScreen> {
                                   valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                                 ),
                               )
-                            : const Text(
-                                'Login',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.message, size: 20),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Continue with WhatsApp',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
                       ),
                     ),
@@ -400,61 +418,49 @@ class _LoginScreenState extends State<LoginScreen> {
                         Expanded(
                           child: Container(
                             height: 1,
-                            color: Colors.black.withOpacity(0.2),
+                            color: AppTheme.borderLightGray,
                           ),
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
-                            'OR',
+                            'or',
                             style: TextStyle(
+                              color: Colors.black.withOpacity(0.5),
                               fontSize: 14,
-                              color: Colors.black.withOpacity(0.6),
-                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
                         Expanded(
                           child: Container(
                             height: 1,
-                            color: Colors.black.withOpacity(0.2),
+                            color: AppTheme.borderLightGray,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
 
-                    // WhatsApp Login Button
+                    // Back to Auth Screen
                     SizedBox(
                       width: double.infinity,
-                      child: TextButton.icon(
+                      child: OutlinedButton(
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const WhatsAppLoginScreen(),
-                            ),
-                          );
+                          Navigator.pop(context);
                         },
-                        style: TextButton.styleFrom(
-                          backgroundColor: const Color(0xFF25D366),
-                          foregroundColor: Colors.white,
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: AppTheme.borderLightGray),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        icon: const Icon(
-                          Icons.whatsapp,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        label: const Text(
-                          'Continue with WhatsApp',
+                        child: Text(
+                          'Back',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                            color: Colors.black.withOpacity(0.8),
                           ),
                         ),
                       ),
@@ -463,34 +469,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRoleButton(String label, String role) {
-    final isSelected = _selectedRole == role;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedRole = role;
-        });
-      },
-      child: Container(
-        height: 48,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected ? AppTheme.white.withOpacity(0.2) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: isSelected ? Colors.white : Colors.black,
-            fontSize: 14,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
         ),
       ),

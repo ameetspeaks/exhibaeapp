@@ -231,7 +231,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                             ],
                           ),
                           child: const Icon(
-                            Icons.whatsapp,
+                            Icons.message,
                             color: Colors.white,
                             size: 40,
                           ),
@@ -449,7 +449,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
                         ),
                         const SizedBox(height: 12),
                         _buildBenefitItem(
-                          icon: Icons.whatsapp,
+                          icon: Icons.message,
                           title: 'WhatsApp Login',
                           description: 'Login quickly with WhatsApp OTP',
                         ),
