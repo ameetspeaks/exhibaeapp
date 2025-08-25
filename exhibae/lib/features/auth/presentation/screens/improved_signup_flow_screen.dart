@@ -318,17 +318,11 @@ class _ImprovedSignupFlowScreenState extends State<ImprovedSignupFlowScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.backgroundPeach,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.gradientBlack,
-              AppTheme.gradientPink,
-            ],
-          ),
-        ),
+        width: double.infinity,
+        height: double.infinity,
+        color: AppTheme.backgroundPeach,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
@@ -385,35 +379,6 @@ class _ImprovedSignupFlowScreenState extends State<ImprovedSignupFlowScreen> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF25D366).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: const Color(0xFF25D366).withOpacity(0.3),
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.message,
-                                color: const Color(0xFF25D366),
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'WhatsApp Authentication',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF25D366),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -496,11 +461,14 @@ class _ImprovedSignupFlowScreenState extends State<ImprovedSignupFlowScreen> {
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _handlePhoneVerification,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF25D366),
-                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(
+                              color: AppTheme.borderLightGray,
+                            ),
                           ),
                         ),
                         child: _isLoading
@@ -509,19 +477,20 @@ class _ImprovedSignupFlowScreenState extends State<ImprovedSignupFlowScreen> {
                                 width: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
                                 ),
                               )
                             : Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.message, size: 20),
+                                  const Icon(Icons.message, size: 20, color: Colors.black),
                                   const SizedBox(width: 8),
                                   const Text(
                                     'Verify with WhatsApp',
                                     style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
+                                      color: Colors.black,
                                     ),
                                   ),
                                 ],

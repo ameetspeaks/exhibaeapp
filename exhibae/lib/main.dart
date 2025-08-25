@@ -4,7 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:exhibae/core/config/supabase_config.dart';
 import 'package:exhibae/core/config/whatsapp_config.dart';
 import 'package:exhibae/core/services/supabase_service.dart';
-import 'package:exhibae/features/auth/presentation/screens/splash_screen.dart';
+import 'package:exhibae/core/routes/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +32,8 @@ class ExhibaeApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         useMaterial3: true,
       ),
-      home: const SplashScreen(),
+      initialRoute: AppRouter.splash,
+      onGenerateRoute: AppRouter.onGenerateRoute,
       debugShowCheckedModeBanner: false,
     );
   }

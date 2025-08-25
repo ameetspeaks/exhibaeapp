@@ -14,17 +14,11 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.backgroundPeach,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.gradientBlack,
-              AppTheme.gradientPink,
-            ],
-          ),
-        ),
+        width: double.infinity,
+        height: double.infinity,
+        color: AppTheme.backgroundPeach,
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
@@ -86,35 +80,6 @@ class _AuthScreenState extends State<AuthScreen> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF25D366).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: const Color(0xFF25D366).withOpacity(0.3),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.message,
-                              color: const Color(0xFF25D366),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'WhatsApp Authentication',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF25D366),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -178,7 +143,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             Navigator.pushNamed(context, AppRouter.login);
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF25D366),
+                            backgroundColor: AppTheme.primaryMaroon,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(

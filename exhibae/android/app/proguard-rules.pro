@@ -14,7 +14,7 @@
 
 # Uncomment this to preserve the line number information for
 # debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+-keepattributes SourceFile,LineNumberTable
 
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
@@ -82,3 +82,36 @@
 -keep @interface * {
     *;
 }
+
+# Additional rules for better obfuscation and debug symbols
+-keepattributes *Annotation*
+-keepattributes Signature
+-keepattributes Exceptions
+
+# Keep native method names for better debugging
+-keepclasseswithmembernames,includedescriptorclasses class * {
+    native <methods>;
+}
+
+# Keep enum values for better debugging
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+# Keep source file information for better stack traces
+-renamesourcefileattribute SourceFile
+
+# Suppress warnings for missing Google Play Core classes
+-dontwarn com.google.android.play.core.splitcompat.SplitCompatApplication
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallException
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallManager
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallManagerFactory
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallRequest$Builder
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallRequest
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallSessionState
+-dontwarn com.google.android.play.core.splitinstall.SplitInstallStateUpdatedListener
+-dontwarn com.google.android.play.core.tasks.OnFailureListener
+-dontwarn com.google.android.play.core.tasks.OnSuccessListener
+-dontwarn com.google.android.play.core.tasks.Task
+-dontwarn javax.lang.model.element.Modifier

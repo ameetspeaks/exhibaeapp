@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/routes/app_router.dart';
 import '../../../../core/widgets/app_logo.dart';
@@ -44,34 +45,75 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // Check authentication and navigate accordingly
-    _checkAuthState();
+    // Check authentication and navigate accordingly with a slight delay
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        _checkAuthState();
+      }
+    });
+    
+    // Fallback to ensure navigation happens
+    _ensureNavigation();
   }
 
   Future<void> _checkAuthState() async {
     try {
+      // Add timeout to prevent infinite loading
+      await Future.delayed(const Duration(seconds: 2));
+      
       // Check if user is already authenticated
       final user = _supabaseService.currentUser;
-      final hasSession = await _supabaseService.hasStoredSession();
+      final hasSession = await _supabaseService.hasStoredSession().timeout(
+        const Duration(seconds: 3),
+        onTimeout: () => false,
+      );
       
-      if (user != null && hasSession) {
-        // User is authenticated, navigate to appropriate screen based on role
-        _navigateBasedOnRole(user);
-      } else {
-        // User is not authenticated, navigate to login screen
-        _navigateToLogin();
+      if (mounted) {
+        if (user != null && hasSession) {
+          // User is authenticated, navigate to appropriate screen based on role
+          _navigateBasedOnRole(user);
+        } else {
+          // User is not authenticated, navigate to login screen
+          _navigateToLogin();
+        }
       }
     } catch (e) {
       // Handle any errors by navigating to login screen
-      _navigateToLogin();
+      if (mounted) {
+        _navigateToLogin();
+      }
     }
   }
 
+  // Fallback method to ensure navigation happens
+  void _ensureNavigation() {
+    Future.delayed(const Duration(seconds: 8), () {
+      if (mounted) {
+        _navigateToLogin();
+      }
+    });
+  }
+
   void _navigateBasedOnRole(User user) {
-    if (user.userMetadata['role'] == 'admin') {
-      Navigator.pushReplacementNamed(context, AppRouter.adminHome);
-    } else {
-      Navigator.pushReplacementNamed(context, AppRouter.home);
+    // Navigate based on user role
+    final userMetadata = user.userMetadata;
+    final role = userMetadata?['role'] as String?;
+    
+    switch (role) {
+      case 'admin':
+      case 'organizer':
+        Navigator.pushReplacementNamed(context, AppRouter.home);
+        break;
+      case 'brand':
+        Navigator.pushReplacementNamed(context, AppRouter.home);
+        break;
+      case 'shopper':
+        Navigator.pushReplacementNamed(context, AppRouter.shopperHome);
+        break;
+      default:
+        // Default to home screen for unknown roles
+        Navigator.pushReplacementNamed(context, AppRouter.home);
+        break;
     }
   }
 
@@ -88,17 +130,11 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.backgroundPeach,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              AppTheme.gradientBlack,
-              AppTheme.gradientPink,
-            ],
-          ),
-        ),
+        width: double.infinity,
+        height: double.infinity,
+        color: AppTheme.backgroundPeach,
         child: SafeArea(
           child: Column(
             children: [
